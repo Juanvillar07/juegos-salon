@@ -57,7 +57,7 @@ describe('Carrera de Sílabas por socket', () => {
     expect(await res.json()).toEqual({ ok: true, games: { 'carrera-de-silabas': { rooms: 0 } } });
   });
 
-  it('dos jugadores reciben la misma secuencia y ven las palabras del otro', async () => {
+  it('dos jugadores reciben la misma secuencia y ven el marcador del otro, pero no sus palabras', async () => {
     const host = await join(SESSION_A);
     const code = await new Promise<string>((resolve, reject) =>
       host.emit('room:create', { nickname: 'Ana' }, (r) => (r.ok ? resolve(r.code) : reject(new Error(r.error)))),
@@ -72,9 +72,16 @@ describe('Carrera de Sílabas por socket', () => {
     expect(a.syllables.slice(0, 2)).toEqual(['tra', 'ca']);
 
     shift = COUNTDOWN_MS;
-    const guestSees = new Promise<Parameters<ServerToClientEvents['race:word']>[0]>((r) => guest.once('race:word', r));
+    // Cualquier evento que reciba Beto: ninguno puede llevar la palabra de Ana.
+    const guestEvents: unknown[] = [];
+    guest.onAny((_event, ...args) => guestEvents.push(args));
+    const guestSees = new Promise<Parameters<ServerToClientEvents['race:progress']>[0]>((r) =>
+      guest.once('race:progress', r),
+    );
     expect(await word(host, 'Trabajo')).toEqual({ ok: true, word: 'trabajo', points: 7, score: 7, syllableIndex: 1, finished: false });
-    expect(await guestSees).toMatchObject({ nickname: 'Ana', word: 'trabajo', syllable: 'tra', points: 7 });
+    const { players } = await guestSees;
+    expect(players.find((p) => p.score === 7)).toMatchObject({ words: 1, syllableIndex: 1 });
+    expect(JSON.stringify(guestEvents)).not.toContain('trabajo');
 
     shift += SUBMIT_COOLDOWN_MS;
     expect(await word(host, 'tractor')).toEqual({ ok: false, error: 'No contiene «CA»' });

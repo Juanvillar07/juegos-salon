@@ -6,6 +6,7 @@ import {
   validateCustomText,
   type RoomSettings,
 } from '@typeracer/shared';
+import { useSlidingPill } from '../../../../shell/transitions';
 import { formatDuration, requiredWpm } from '../../lib/format';
 import { updateRoomSettings } from '../../state/store';
 import styles from './RoomSettingsPanel.module.css';
@@ -26,6 +27,9 @@ export default function RoomSettingsPanel({ settings, isHost }: Props) {
   const [draft, setDraft] = useState(settings.customText ?? '');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // Píldora deslizante de los selectores (Tabs sliding, transitions.dev).
+  const textBar = useSlidingPill<HTMLDivElement>(mode);
+  const timeBar = useSlidingPill<HTMLDivElement>(settings.timeLimitSec);
 
   // Cuando llega el texto guardado (ya normalizado por el servidor), se refleja en el editor.
   useEffect(() => {
@@ -75,7 +79,8 @@ export default function RoomSettingsPanel({ settings, isHost }: Props) {
       <div className={styles.section}>
         <div className={styles.sectionHead}>
           <span className="label">Texto</span>
-          <div className="segmented">
+          <div className="segmented" ref={textBar}>
+            <span className="t-tabs-pill" aria-hidden="true" />
             <button type="button" aria-pressed={mode === 'random'} onClick={() => chooseMode('random')}>
               Aleatorio
             </button>
@@ -129,7 +134,8 @@ export default function RoomSettingsPanel({ settings, isHost }: Props) {
       <div className={styles.section}>
         <div className={styles.sectionHead}>
           <span className="label">Tiempo límite</span>
-          <div className="segmented">
+          <div className="segmented" ref={timeBar}>
+            <span className="t-tabs-pill" aria-hidden="true" />
             {TIME_LIMIT_OPTIONS.map((sec) => (
               <button
                 key={sec}

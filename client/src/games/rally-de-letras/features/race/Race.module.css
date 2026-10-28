@@ -29,7 +29,7 @@
   align-items: center;
   gap: 10px;
   font-size: 0.9rem;
-  animation: rise 0.2s ease-out;
+  animation: rise var(--duration-fast) var(--ease-smooth-out);
 }
 
 .danger {
@@ -134,7 +134,7 @@
   background: var(--text);
   color: var(--bg);
   font-size: 0.75rem;
-  animation: bump 0.35s cubic-bezier(0.3, 0.7, 0.3, 1.6);
+  animation: bump var(--duration-very-slow) var(--ease-bounce);
 }
 
 .streak .num {
@@ -272,7 +272,7 @@
   display: flex;
   align-items: center;
   gap: 20px;
-  animation: rise 0.4s ease-out;
+  animation: rise var(--duration-slow) var(--ease-smooth-out);
 }
 
 /* Bandera a cuadros mínima */

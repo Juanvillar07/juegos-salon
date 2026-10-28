@@ -21,7 +21,7 @@
   line-height: 0.92;
 }
 
-.title span {
+.title .dim {
   color: var(--subtle);
 }
 

@@ -225,6 +225,7 @@ a:focus-visible {
 
 /* Control segmentado: grupo de opciones excluyentes */
 .segmented {
+  position: relative;
   display: inline-flex;
   flex-wrap: wrap;
   gap: 2px;
@@ -234,6 +235,8 @@ a:focus-visible {
 }
 
 .segmented button {
+  position: relative;
+  z-index: 1;
   font: inherit;
   font-size: 0.85rem;
   padding: 7px 14px;
@@ -251,6 +254,12 @@ a:focus-visible {
   background: var(--surface);
   color: var(--text);
   box-shadow: var(--shadow);
+}
+
+/* Con píldora deslizante (Tabs sliding, transitions.dev) el fondo lo pone la píldora. */
+.segmented:has(.t-tabs-pill) button[aria-pressed='true'] {
+  background: transparent;
+  box-shadow: none;
 }
 
 .segmented button:disabled {

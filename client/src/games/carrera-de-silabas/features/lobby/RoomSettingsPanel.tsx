@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { MIN_WORD_LENGTH, TARGET_OPTIONS, type RoomSettings } from '@typeracer/shared/carrera-de-silabas';
+import { useSlidingPill } from '../../../../shell/transitions';
 import { updateRoomSettings } from '../../state/store';
 import styles from '../../../rally-de-letras/features/lobby/RoomSettingsPanel.module.css';
 
@@ -15,6 +16,8 @@ const TYPICAL_WORD = 7;
 export default function RoomSettingsPanel({ settings, isHost }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // Píldora deslizante del selector (Tabs sliding, transitions.dev).
+  const targetBar = useSlidingPill<HTMLDivElement>(settings.target);
   const hint = `Cada palabra suma un punto por letra (mínimo ${MIN_WORD_LENGTH}). Con palabras de ${TYPICAL_WORD} letras son unas ${Math.ceil(settings.target / TYPICAL_WORD)} palabras.`;
 
   const choose = async (target: number) => {
@@ -41,7 +44,8 @@ export default function RoomSettingsPanel({ settings, isHost }: Props) {
       <div className={styles.section}>
         <div className={styles.sectionHead}>
           <span className="label">Meta</span>
-          <div className="segmented">
+          <div className="segmented" ref={targetBar}>
+            <span className="t-tabs-pill" aria-hidden="true" />
             {TARGET_OPTIONS.map((target) => (
               <button
                 key={target}

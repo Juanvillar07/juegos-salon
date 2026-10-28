@@ -7,7 +7,6 @@ import type {
   RoomSnapshot,
   RoomState,
   WordAck,
-  WordPlay,
 } from '@typeracer/shared/carrera-de-silabas';
 import { ordinal } from '../../rally-de-letras/lib/format';
 import { socket } from '../lib/socket';
@@ -28,16 +27,12 @@ export interface ClientState {
   room: RoomState | null;
   /** Mensajes del chat de la sala actual. */
   chat: ChatMessage[];
-  /** Últimas palabras acertadas en la carrera (de todos), la más reciente al final. */
-  plays: WordPlay[];
   /** Diferencia reloj servidor − reloj local, en ms. */
   clockOffset: number;
   notices: Notice[];
   error: string | null;
 }
 
-/** Palabras que se guardan en el registro de jugadas. */
-const PLAYS_KEPT = 40;
 
 let state: ClientState = {
   connected: false,
@@ -46,7 +41,6 @@ let state: ClientState = {
   myId: null,
   room: null,
   chat: [],
-  plays: [],
   clockOffset: 0,
   notices: [],
   error: null,
@@ -104,7 +98,7 @@ export function updateRoomSettings(patch: Partial<RoomSettings>): Promise<Ack> {
 
 export function leaveRoom(): void {
   if (state.room) socket.emit('room:leave');
-  setState({ room: null, chat: [], plays: [], notices: [], error: null });
+  setState({ room: null, chat: [], notices: [], error: null });
 }
 
 export function sendChat(text: string): Promise<Ack> {
@@ -193,7 +187,7 @@ socket.on('disconnect', () => setState({ connected: false, sessionReady: false }
 
 socket.on('session:ready', ({ sessionId, playerId, room }) => {
   setSessionId(sessionId);
-  setState({ sessionReady: true, myId: playerId, room: null, ...(room ? {} : { chat: [], plays: [] }) });
+  setState({ sessionReady: true, myId: playerId, room: null, ...(room ? {} : { chat: [] }) });
   if (room) applySnapshot(room);
 });
 
@@ -210,9 +204,8 @@ socket.on('chat:message', (message) => {
   if (message.kind === 'system' && state.room?.phase === 'racing' && !me?.retired) pushNotice(message.text);
 });
 
-socket.on('race:countdown', ({ serverNow: sNow }) => setState({ clockOffset: sNow - Date.now(), plays: [] }));
+socket.on('race:countdown', ({ serverNow: sNow }) => setState({ clockOffset: sNow - Date.now() }));
 
-socket.on('race:word', (play) => setState({ plays: [...state.plays, play].slice(-PLAYS_KEPT) }));
 
 socket.on('race:progress', ({ players }) => {
   if (!state.room) return;

@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { revealDelay, useReveal } from '../shell/transitions';
 import { GAMES, type GameEntry } from './games';
 import RallyPreview from './previews/RallyPreview';
 import SilabasPreview from './previews/SilabasPreview';
@@ -11,14 +12,17 @@ const PREVIEWS: Record<string, () => JSX.Element> = {
 };
 
 export default function PortalHome() {
+  const reveal = useReveal();
   return (
     <div className={styles.portal} data-fit>
-      <section className={styles.hero}>
-        <span className="label">Salón de Juegos</span>
-        <h1 className={styles.title}>
+      <section className={`${styles.hero} ${reveal}`}>
+        <span className="label t-stagger-line" style={revealDelay(0)}>
+          Salón de Juegos
+        </span>
+        <h1 className={`${styles.title} t-stagger-line`} style={revealDelay(1)}>
           Elige tu <span>juego.</span>
         </h1>
-        <p className={styles.lead}>
+        <p className={`${styles.lead} t-stagger-line`} style={revealDelay(2)}>
           Juegos multijugador para jugar con amigos desde el navegador, sin instalar nada. Crea una sala, comparte el
           enlace y a jugar.
         </p>

@@ -45,7 +45,7 @@
 }
 
 .car {
-  animation: rollIn 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+  animation: rollIn var(--duration-very-slow) var(--ease-smooth-out);
 }
 
 @keyframes rollIn {

@@ -2,7 +2,7 @@ import type { CarPrefs } from '../../cars.js';
 import type { ChatMessage } from '../../chat.js';
 import type { Ack, CreateAck } from '../../events.js';
 import type { RoomSettings } from './settings.js';
-import type { PlayerProgress, RaceResult, RoomSnapshot, WordPlay } from './types.js';
+import type { PlayerProgress, RaceResult, RoomSnapshot } from './types.js';
 
 export type { Ack, CreateAck, SocketAuth, SocketData } from '../../events.js';
 
@@ -43,8 +43,6 @@ export interface ServerToClientEvents {
   'chat:message': (message: ChatMessage) => void;
   'race:countdown': (payload: { syllables: string[]; startAt: number; serverNow: number }) => void;
   'race:progress': (payload: { players: PlayerProgress[] }) => void;
-  /** Alguien acertó una palabra. */
-  'race:word': (play: WordPlay) => void;
   'race:playerFinished': (payload: { playerId: string; nickname: string; position: number }) => void;
   'race:results': (results: RaceResult[]) => void;
   error: (payload: { message: string }) => void;
