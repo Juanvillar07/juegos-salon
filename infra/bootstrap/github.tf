@@ -5,6 +5,15 @@
 
 locals {
   oidc_host = "token.actions.githubusercontent.com"
+  # GitHub firma el "sub" en uno de dos formatos: repo:propietario/nombre:… o, con IDs
+  # inmutables, repo:propietario@ID/nombre@ID:…; se aceptan los dos.
+  repo_parts = split("/", var.github_repository)
+  repo_subjects = concat(
+    ["repo:${var.github_repository}"],
+    var.github_ids == null ? [] : [
+      "repo:${local.repo_parts[0]}@${var.github_ids.owner}/${local.repo_parts[1]}@${var.github_ids.repository}",
+    ],
+  )
   oidc_provider_arn = (
     var.create_github_oidc_provider
     ? aws_iam_openid_connect_provider.github[0].arn
@@ -26,11 +35,8 @@ data "aws_iam_openid_connect_provider" "github" {
 
 data "aws_iam_policy_document" "trust" {
   for_each = {
-    plan = [
-      "repo:${var.github_repository}:pull_request",
-      "repo:${var.github_repository}:ref:refs/heads/main",
-    ]
-    deploy = ["repo:${var.github_repository}:environment:${var.github_environment}"]
+    plan   = flatten([for r in local.repo_subjects : ["${r}:pull_request", "${r}:ref:refs/heads/main"]])
+    deploy = [for r in local.repo_subjects : "${r}:environment:${var.github_environment}"]
   }
 
   statement {

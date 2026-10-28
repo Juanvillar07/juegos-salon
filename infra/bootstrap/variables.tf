@@ -26,6 +26,20 @@ variable "github_repository" {
   }
 }
 
+variable "github_ids" {
+  description = <<-EOT
+    IDs numéricos del propietario y del repositorio. Algunas cuentas de GitHub firman sus tokens con un
+    "sub" que los incluye (repo:propietario@ID/nombre@ID:...) en lugar del clásico (repo:propietario/nombre:...).
+    null = solo el formato clásico. Se ven en https://api.github.com/repos/<propietario>/<nombre>
+    (owner.id e id) o en el "sub" de un intento rechazado en CloudTrail (evento AssumeRoleWithWebIdentity).
+  EOT
+  type = object({
+    owner      = number
+    repository = number
+  })
+  default = null
+}
+
 variable "github_environment" {
   description = "Environment de GitHub de los jobs que despliegan. Solo ellos reciben permisos de escritura."
   type        = string

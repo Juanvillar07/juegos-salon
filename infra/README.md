@@ -162,6 +162,20 @@ Sube los cambios a `main`: `deploy.yml` se encarga de todo. A mano también func
 
 Al redesplegar el backend, el contenedor se reinicia en unos segundos y las salas en curso se pierden, porque viven en memoria. Por eso `deploy.yml` solo lo redespliega cuando cambia algo que le afecta.
 
+## Si GitHub Actions no puede entrar en AWS
+
+El error `Not authorized to perform sts:AssumeRoleWithWebIdentity` significa que el token de GitHub no coincide con la confianza del rol. Para encontrar la causa:
+
+1. **Busca el `sub` rechazado** en CloudTrail:
+
+   ```bash
+   aws cloudtrail lookup-events --lookup-attributes AttributeKey=EventName,AttributeValue=AssumeRoleWithWebIdentity --max-results 5
+   ```
+
+2. **Compáralo con lo que esperan los roles:**
+   - Si trae IDs (`repo:propietario@123/nombre@456:…`), pon `github_ids` en `infra/bootstrap/terraform.tfvars` y vuelve a aplicar el bootstrap.
+   - Si no, revisa las variables `AWS_*_ROLE_ARN` y que el environment se llame `production`.
+
 ## Notas
 
 - **SSH:** solo desde `ssh_allowed_cidrs`. GitHub Actions abre su IP de forma temporal.
