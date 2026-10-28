@@ -17,11 +17,11 @@ import {
   DEFAULT_SETTINGS,
   MAX_WORD_LENGTH,
   MIN_WORD_LENGTH,
-  RACE_LIMIT_MS,
   SUBMIT_COOLDOWN_MS,
   checkWordShape,
   normalizeWord,
   validateTarget,
+  validateTimeLimit,
   wordPoints,
   type PlayerProgress,
   type RaceResult,
@@ -267,6 +267,11 @@ export class RoomManager {
       if (error) return { ok: false, error };
       next.target = patch.target;
     }
+    if (patch.timeLimitSec !== undefined) {
+      const error = validateTimeLimit(patch.timeLimitSec);
+      if (error) return { ok: false, error };
+      next.timeLimitSec = patch.timeLimitSec;
+    }
     room.settings = next;
     return { ok: true, room };
   }
@@ -494,7 +499,7 @@ export class RoomManager {
       })),
       syllables: room.syllables,
       startAt: room.startAt,
-      endsAt: room.startAt === null ? null : room.startAt + RACE_LIMIT_MS,
+      endsAt: room.startAt === null ? null : room.startAt + room.settings.timeLimitSec * 1000,
       results: room.results,
       settings: room.settings,
       autoStartAt: room.autoStartAt,

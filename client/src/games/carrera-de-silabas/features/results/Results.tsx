@@ -1,4 +1,3 @@
-import { Link } from 'react-router-dom';
 import type { RaceResult, RoomState } from '@typeracer/shared/carrera-de-silabas';
 import StatusTag from '../../../rally-de-letras/components/StatusTag';
 import CarSprite from '../../../rally-de-letras/components/cars/CarSprite';
@@ -7,6 +6,7 @@ import { playAgain } from '../../state/store';
 import { GAME_HOME } from '../../routes';
 import Chat from '../chat/Chat';
 import styles from '../../../rally-de-letras/features/results/Results.module.css';
+import ExitRoomLink from '../../../../shell/ExitRoomLink';
 
 interface Props {
   room: RoomState;
@@ -96,9 +96,7 @@ export default function Results({ room, myId, isHost }: Props) {
           ) : (
             <p className="muted">Esperando a que el host inicie otra carrera…</p>
           )}
-          <Link to={GAME_HOME} className="btn ghost">
-            Salir
-          </Link>
+          <ExitRoomLink to={GAME_HOME} />
         </div>
 
         <div className={styles.chat}>

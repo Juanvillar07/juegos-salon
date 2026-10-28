@@ -81,6 +81,40 @@
   color: var(--subtle);
 }
 
+/* Volver: solo el icono, a la izquierda de las migas. */
+.back {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  margin-right: 4px;
+  border-radius: 50%;
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+  flex-shrink: 0;
+  transition:
+    background var(--duration-quick) var(--ease-out),
+    transform var(--duration-quick) var(--ease-out);
+}
+
+.back svg {
+  width: 18px;
+  height: 18px;
+}
+
+.back:hover {
+  background: var(--surface-2);
+}
+
+.back:active {
+  transform: scale(0.94);
+}
+
+/* Durante la carrera no hay "Volver": se sale con el botón "Salir" (o Esc) de la propia carrera. */
+.app:has([data-race]) .back {
+  display: none;
+}
+
 .gameName {
   font-weight: 500;
   color: var(--muted);

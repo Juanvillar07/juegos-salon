@@ -25,6 +25,19 @@ export interface PlayerInfo {
   position: number | null;
   /** Volvió a la sala durante la carrera: ya no corre (su auto queda en la pista) y ve el lobby. */
   retired: boolean;
+  /** Entró con la carrera en marcha: la ve desde el lobby y corre la siguiente (no está en la pista). */
+  spectator: boolean;
+  /** Marcador de la sala: se acumula carrera tras carrera mientras siga en ella. */
+  stats: PlayerStats;
+}
+
+export interface PlayerStats {
+  /** Carreras ganadas (solo cuentan las de 2 o más pilotos). */
+  wins: number;
+  /** Carreras que terminó. */
+  finished: number;
+  /** Mejor WPM en una carrera terminada (0 si aún no terminó ninguna). */
+  bestWpm: number;
 }
 
 export interface RaceResult {

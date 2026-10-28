@@ -1,8 +1,9 @@
 import { lazy, Suspense } from 'react';
 import { Link, Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom';
 import PortalHome from '../portal/PortalHome';
-import { gameForPath } from '../portal/games';
+import { gameForPath, type GameEntry } from '../portal/games';
 import { HEADER_SLOT_ID } from './headerSlot';
+import { BackIcon } from './icons';
 import ThemeToggle from './ThemeToggle';
 import styles from './App.module.css';
 
@@ -16,13 +17,30 @@ function LegacyRoomRedirect() {
   return <Navigate to={`/rally-de-letras/sala/${code}`} replace />;
 }
 
+/**
+ * A dónde lleva "Volver": de la portada de un juego al portal; de una sala, a la portada del
+ * juego (que la abandona). En el portal no hay a dónde volver.
+ */
+function backTarget(pathname: string, game: GameEntry | undefined): string | null {
+  if (!game?.path) return null;
+  return pathname === game.path || pathname === `${game.path}/` ? '/' : game.path;
+}
+
 export default function App() {
-  const game = gameForPath(useLocation().pathname);
+  const { pathname } = useLocation();
+  const game = gameForPath(pathname);
+  const back = backTarget(pathname, game);
 
   return (
     <div className={styles.app}>
       <header className={styles.header}>
         <nav className={styles.crumbs} aria-label="Ubicación">
+          {/* Se oculta durante la carrera (el CSS lo detecta con [data-race]): ahí se sale con "Salir". */}
+          {back && (
+            <Link to={back} className={styles.back} aria-label="Volver" title="Volver">
+              <BackIcon />
+            </Link>
+          )}
           <Link to="/" className={styles.logo}>
             <span className={styles.mark} aria-hidden="true">
               <i />

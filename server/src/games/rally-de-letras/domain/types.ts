@@ -1,4 +1,4 @@
-import type { CarModel, ChatMessage, PlayerStatus, RaceResult, RoomPhase, RoomSettings } from '@typeracer/shared';
+import type { CarModel, ChatMessage, PlayerStats, PlayerStatus, RaceResult, RoomPhase, RoomSettings } from '@typeracer/shared';
 
 export interface RaceText {
   id: number;
@@ -18,6 +18,10 @@ export interface Player {
   finishedAt: number | null;
   /** Volvió a la sala durante la carrera: ya no corre, pero sigue en la sala. */
   retired: boolean;
+  /** Entró con la carrera en marcha: no forma parte de ella (tampoco de sus resultados). */
+  spectator: boolean;
+  /** Marcador de la sala; no se reinicia entre carreras. */
+  stats: PlayerStats;
   /** Último mensaje de chat, para limitar la frecuencia. */
   lastChatAt: number | null;
 }

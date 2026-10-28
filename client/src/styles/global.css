@@ -223,6 +223,23 @@ a:focus-visible {
   width: 100%;
 }
 
+/* Salir de la sala: secundario y con icono; se tiñe de rojo al pasar el ratón porque sales. */
+.btn.exit {
+  color: var(--muted);
+}
+
+.btn.exit svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.btn.exit:hover:not(:disabled) {
+  color: var(--bad);
+  border-color: color-mix(in srgb, var(--bad) 45%, transparent);
+  background: color-mix(in srgb, var(--bad) 8%, transparent);
+}
+
 /* Control segmentado: grupo de opciones excluyentes */
 .segmented {
   position: relative;

@@ -1,11 +1,5 @@
 import type { Namespace, Socket } from 'socket.io';
-import {
-  RACE_LIMIT_MS,
-  type ClientToServerEvents,
-  type RoomSnapshot,
-  type ServerToClientEvents,
-  type SocketData,
-} from '@typeracer/shared/carrera-de-silabas';
+import type { ClientToServerEvents, RoomSnapshot, ServerToClientEvents, SocketData } from '@typeracer/shared/carrera-de-silabas';
 import type { RoomManager } from '../domain/RoomManager.js';
 import type { AutoStartDecision, LeaveResult, RaceOutcome, Room } from '../domain/types.js';
 import { KeyedTimers } from '../../../common/KeyedTimers.js';
@@ -118,10 +112,10 @@ export class RealtimeContext {
     this.broadcastState(room);
   }
 
-  /** Programa el fin de la carrera por el límite de seguridad (si no llegan todos a la meta). */
+  /** Programa el fin de la carrera por el límite de tiempo de la sala (si no llegan todos a la meta). */
   scheduleRaceEnd(room: Room): void {
     const { code, raceId } = room;
-    const ms = room.startAt! - Date.now() + RACE_LIMIT_MS;
+    const ms = room.startAt! - Date.now() + room.settings.timeLimitSec * 1000;
     this.raceTimers.set(code, ms, () => {
       if (this.manager.getRoom(code)?.raceId === raceId) this.finishRace(code);
     });

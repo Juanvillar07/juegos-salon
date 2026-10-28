@@ -15,6 +15,8 @@ export function playerAccuracy(player: Player): number {
 /** Primero los que llegaron, por orden de llegada; luego los que no terminaron, por avance. */
 export function computeResults(room: Room, now: number): RaceResult[] {
   return [...room.players.values()]
+    // Quien entró con la carrera en marcha no corrió: no aparece en los resultados.
+    .filter((p) => !p.spectator)
     .map<RaceResult>((p) => ({
       playerId: p.id,
       nickname: p.nickname,

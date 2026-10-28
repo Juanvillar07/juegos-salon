@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { textLengthOf, type TextLength } from '@typeracer/shared';
 import type { RaceText } from './types.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -13,14 +14,18 @@ export function loadTexts(path = DEFAULT_PATH): RaceText[] {
 }
 
 /**
- * Elige un texto al azar que la sala no haya corrido hace poco (`recent`, del más antiguo al
- * más nuevo). Si ya los usó todos, solo evita repetir el último.
+ * Elige un texto al azar de la longitud pedida que la sala no haya corrido hace poco (`recent`,
+ * del más antiguo al más nuevo). Si ya los usó todos, solo evita repetir el último.
  */
 export function createTextPicker(texts: RaceText[], random: () => number = Math.random) {
-  return (recent: readonly number[]): RaceText => {
+  return (recent: readonly number[], length: TextLength = 'any'): RaceText => {
+    const sized = length === 'any' ? texts : texts.filter((t) => textLengthOf(t.text.length) === length);
+    const candidates = sized.length > 0 ? sized : texts;
     const used = new Set(recent);
-    let pool = texts.filter((t) => !used.has(t.id));
-    if (pool.length === 0) pool = texts.length > 1 ? texts.filter((t) => t.id !== recent.at(-1)) : texts;
+    let pool = candidates.filter((t) => !used.has(t.id));
+    if (pool.length === 0) {
+      pool = candidates.length > 1 ? candidates.filter((t) => t.id !== recent.at(-1)) : candidates;
+    }
     return pool[Math.floor(random() * pool.length)];
   };
 }

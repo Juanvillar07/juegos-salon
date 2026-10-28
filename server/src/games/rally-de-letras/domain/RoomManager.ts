@@ -13,7 +13,9 @@ import {
   isCarColor,
   isCarModel,
   cleanChatText,
+  isTextLength,
   normalizeRaceText,
+  stripSigns,
   validateCustomText,
   validateTimeLimit,
   type CarPrefs,
@@ -22,6 +24,7 @@ import {
   type PlayerProgress,
   type RaceResult,
   type RoomState,
+  type TextLength,
 } from '@typeracer/shared';
 import { computeResults, playerWpm } from './results.js';
 import { generateRoomCode, normalizeRoomCode } from '../../../common/roomCode.js';
@@ -44,8 +47,8 @@ const CUSTOM_TEXT_ID = -1;
 const RECENT_TEXTS = 30;
 
 export interface RoomManagerOptions {
-  /** Elige un texto del catálogo evitando los recientes de la sala (del más antiguo al más nuevo). */
-  pickText: (recentIds: readonly number[]) => RaceText;
+  /** Elige un texto del catálogo de esa longitud, evitando los recientes de la sala (del más antiguo al más nuevo). */
+  pickText: (recentIds: readonly number[], length: TextLength) => RaceText;
   now?: () => number;
   generateCode?: () => string;
   /** Espera de la salida automática cuando la mayoría está lista. */
@@ -66,7 +69,7 @@ export class RoomManager {
   /** Sala de cada jugador activo (los que abandonaron una carrera ya no están aquí). */
   private playerRoom = new Map<string, string>();
   private now: () => number;
-  private pickText: (recentIds: readonly number[]) => RaceText;
+  private pickText: (recentIds: readonly number[], length: TextLength) => RaceText;
   private generateCode: () => string;
   private autoStartMs: number;
 
@@ -139,11 +142,16 @@ export class RoomManager {
     }
     if (current) return { ok: false, error: 'Ya estás en otra sala' };
 
-    if (room.phase === 'racing') return { ok: false, error: 'La carrera ya empezó, espera a que termine' };
     const active = [...room.players.values()].filter(isActive).length;
     if (active >= MAX_PLAYERS) return { ok: false, error: `La sala está llena (máximo ${MAX_PLAYERS})` };
 
     this.addPlayer(room, playerId, name, prefs);
+    if (room.phase === 'racing') {
+      // Con la carrera en marcha entra como espectador: la ve desde el lobby y corre la siguiente.
+      const player = room.players.get(playerId)!;
+      player.spectator = true;
+      player.retired = true;
+    }
     return { ok: true, room };
   }
 
@@ -273,6 +281,14 @@ export class RoomManager {
         next.customText = text;
       }
     }
+    if (patch.textLength !== undefined) {
+      if (!isTextLength(patch.textLength)) return { ok: false, error: 'Longitud de texto no válida' };
+      next.textLength = patch.textLength;
+    }
+    if (patch.plainText !== undefined) {
+      if (typeof patch.plainText !== 'boolean') return { ok: false, error: 'Opción no válida' };
+      next.plainText = patch.plainText;
+    }
     room.settings = next;
     return { ok: true, room };
   }
@@ -338,10 +354,12 @@ export class RoomManager {
     if (room.phase !== 'lobby') return { ok: false, error: 'La carrera ya está en curso' };
     room.autoStartAt = null;
     if (room.settings.customText !== null) {
+      // El texto pegado se escribe tal cual (longitud y "sin signos" son ajustes del catálogo).
       room.text = { id: CUSTOM_TEXT_ID, text: room.settings.customText };
     } else {
-      room.text = this.pickText(room.recentTextIds);
-      room.recentTextIds = [...room.recentTextIds, room.text.id].slice(-RECENT_TEXTS);
+      const picked = this.pickText(room.recentTextIds, room.settings.textLength);
+      room.text = room.settings.plainText ? { ...picked, text: stripSigns(picked.text) } : picked;
+      room.recentTextIds = [...room.recentTextIds, picked.id].slice(-RECENT_TEXTS);
     }
     room.phase = 'racing';
     room.startAt = this.now() + COUNTDOWN_MS;
@@ -433,7 +451,19 @@ export class RoomManager {
     room.phase = 'finished';
     room.endedAt = this.now();
     room.results = computeResults(room, room.endedAt);
+    this.updateStats(room, room.results);
     return room.results;
+  }
+
+  /** Marcador de la sala: carreras terminadas, mejor WPM y victorias (con 2 o más pilotos). */
+  private updateStats(room: Room, results: RaceResult[]): void {
+    for (const r of results) {
+      const player = room.players.get(r.playerId);
+      if (!player || r.position === null) continue;
+      player.stats.finished++;
+      player.stats.bestWpm = Math.max(player.stats.bestWpm, r.wpm);
+      if (r.position === 1 && results.length >= 2) player.stats.wins++;
+    }
   }
 
   /** "Otra carrera": vuelve al lobby y descarta a los que abandonaron. */
@@ -483,6 +513,8 @@ export class RoomManager {
         wpm: playerWpm(room, p, now),
         position: p.position,
         retired: p.retired,
+        spectator: p.spectator,
+        stats: { ...p.stats },
       })),
       text: room.text?.text ?? null,
       startAt: room.startAt,
@@ -516,6 +548,8 @@ export class RoomManager {
       position: null,
       finishedAt: null,
       retired: false,
+      spectator: false,
+      stats: { wins: 0, finished: 0, bestWpm: 0 },
       lastChatAt: null,
     });
     this.playerRoom.set(id, room.code);
@@ -528,5 +562,6 @@ function resetPlayerRace(p: Player): void {
   p.position = null;
   p.finishedAt = null;
   p.retired = false;
+  p.spectator = false;
   p.ready = false;
 }

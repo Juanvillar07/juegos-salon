@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import type { RaceResult, RoomState } from '@typeracer/shared';
 import StatusTag from '../../components/StatusTag';
 import CarSprite from '../../components/cars/CarSprite';
@@ -9,6 +8,7 @@ import { playAgain } from '../../state/store';
 import { GAME_HOME } from '../../routes';
 import Chat from '../chat/Chat';
 import styles from './Results.module.css';
+import ExitRoomLink from '../../../../shell/ExitRoomLink';
 
 interface Props {
   room: RoomState;
@@ -105,6 +105,8 @@ export default function Results({ room, myId, isHost }: Props) {
           </tbody>
         </table>
 
+        {room.players.length >= 2 && <Scoreboard room={room} myId={myId} />}
+
         <div className="actions">
           {isHost ? (
             <button className="btn primary big" onClick={playAgain}>
@@ -113,9 +115,7 @@ export default function Results({ room, myId, isHost }: Props) {
           ) : (
             <p className="muted">Esperando a que el host inicie otra carrera…</p>
           )}
-          <Link to={GAME_HOME} className="btn ghost">
-            Salir
-          </Link>
+          <ExitRoomLink to={GAME_HOME} />
         </div>
 
         <div className={styles.chat}>
@@ -124,6 +124,43 @@ export default function Results({ room, myId, isHost }: Props) {
         </div>
       </section>
     </div>
+  );
+}
+
+/** Marcador de la sala: victorias y mejor marca de cada piloto, acumulados carrera tras carrera. */
+function Scoreboard({ room, myId }: { room: RoomState; myId: string }) {
+  const rows = [...room.players]
+    .filter((p) => p.status !== 'left')
+    .sort((a, b) => b.stats.wins - a.stats.wins || b.stats.bestWpm - a.stats.bestWpm);
+  return (
+    <section className={styles.scoreboard}>
+      <span className="label">Marcador de la sala</span>
+      <table className={`${styles.table} ${styles.compact}`}>
+        <thead>
+          <tr>
+            <th>Piloto</th>
+            <th className={styles.right}>victorias</th>
+            <th className={styles.right}>terminadas</th>
+            <th className={styles.right}>mejor wpm</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((p) => (
+            <tr key={p.id} className={p.id === myId ? styles.mine : undefined}>
+              <td>
+                <span className={styles.player}>
+                  <span className="dot" style={{ background: p.color }} />
+                  <span className="nick">{p.nickname}</span>
+                </span>
+              </td>
+              <td className={`${styles.right} num`}>{p.stats.wins}</td>
+              <td className={`${styles.right} num`}>{p.stats.finished}</td>
+              <td className={`${styles.right} num`}>{p.stats.bestWpm || '–'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
   );
 }
 

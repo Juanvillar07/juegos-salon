@@ -117,6 +117,18 @@
   margin-top: 16px;
 }
 
+/* Marcador de la sala, bajo los resultados de la carrera. */
+.scoreboard {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.compact td {
+  padding: 8px 10px;
+  font-size: 0.9rem;
+}
+
 /* ---------------------------------------------------------------- tabla */
 
 .table {

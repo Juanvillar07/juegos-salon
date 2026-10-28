@@ -80,9 +80,17 @@ export default function Lobby({ room, myId, isHost }: Props) {
                   </div>
                   <div className={styles.playerInfo}>
                     <span className="nick">{p.nickname}</span>
-                    <span className={styles.model}>{CAR_MODEL_NAMES[p.car]}</span>
+                    <span className={styles.model}>
+                      {CAR_MODEL_NAMES[p.car]}
+                      {p.stats.bestWpm > 0 && ` · mejor ${p.stats.bestWpm} wpm`}
+                    </span>
                   </div>
                   <div className={styles.tags}>
+                    {p.stats.wins > 0 && (
+                      <span className="tag">
+                        {p.stats.wins} {p.stats.wins === 1 ? 'victoria' : 'victorias'}
+                      </span>
+                    )}
                     {p.ready && <span className="tag ready">listo</span>}
                     {p.id === room.hostId && <span className="tag">host</span>}
                     {p.id === myId && <span className="tag me">tú</span>}
@@ -120,7 +128,7 @@ export default function Lobby({ room, myId, isHost }: Props) {
         </section>
 
         {racing ? (
-          <RaceInProgress room={room} isHost={isHost} />
+          <RaceInProgress room={room} isHost={isHost} spectator={me.spectator} />
         ) : (
           <StartPanel room={room} myId={myId} isHost={isHost} />
         )}

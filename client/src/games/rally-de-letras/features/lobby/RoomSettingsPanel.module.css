@@ -18,6 +18,31 @@
   flex-wrap: wrap;
 }
 
+/* Ajuste secundario dentro de una sección (p. ej. la longitud del texto aleatorio). */
+.subRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 0.9rem;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.check input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--text);
+  cursor: pointer;
+}
+
 .textarea {
   width: 100%;
   resize: vertical;

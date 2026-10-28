@@ -27,6 +27,7 @@ export default function HomePage() {
 
   const name = nickname.trim();
   const codeComplete = code.trim().length === ROOM_CODE_LENGTH;
+  const joining = code.trim().length > 0;
 
   const changeCar = (choice: CarChoice) => {
     setCar(choice);
@@ -103,7 +104,13 @@ export default function HomePage() {
               <h2 className={styles.optionTitle}>Crear una sala</h2>
               <p className={styles.optionText}>Elige los ajustes y comparte el enlace para invitar.</p>
             </div>
-            <button className="btn primary big" type="submit" disabled={!sessionReady || busy}>
+            {/* Si está escribiendo un código, lo que quiere es unirse: crear queda inhabilitado. */}
+            <button
+              className="btn primary big"
+              type="submit"
+              disabled={!sessionReady || busy || joining}
+              title={joining ? 'Borra el código para crear una sala nueva' : undefined}
+            >
               Crear sala <span aria-hidden="true">→</span>
             </button>
           </form>

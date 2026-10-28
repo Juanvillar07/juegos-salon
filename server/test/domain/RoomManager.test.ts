@@ -90,11 +90,12 @@ describe('RoomManager: crear y unirse', () => {
     expect(new Set([...room.players.values()].map((p) => p.color)).size).toBe(MAX_PLAYERS);
   });
 
-  it('no permite unirse durante una carrera', () => {
+  it('durante una carrera se entra como espectador', () => {
     const { manager } = setup();
     const room = roomWith(manager);
     manager.startRace('a');
-    expect(manager.joinRoom(room.code, 'b', 'Beto').ok).toBe(false);
+    expect(manager.joinRoom(room.code, 'b', 'Beto').ok).toBe(true);
+    expect(room.players.get('b')).toMatchObject({ spectator: true, retired: true });
   });
 });
 

@@ -5,6 +5,8 @@ import Speedometer from '../../components/Speedometer';
 import Track from '../../components/Track';
 import TrafficLight from '../../components/TrafficLight';
 import { formatCountdown } from '../../lib/format';
+import { ghostCharsAt, type GhostSample } from '../../lib/ghost';
+import { getGhost, saveGhost } from '../../lib/storage';
 import { cancelRace, retireFromRace, serverNow } from '../../state/store';
 import { GAME_HOME } from '../../routes';
 import TextDisplay from './TextDisplay';
@@ -32,6 +34,14 @@ export default function Race({ room, myId }: Props) {
   const me = room.players.find((p) => p.id === myId);
   const isHost = room.hostId === myId;
   const words = useMemo(() => splitWords(text), [text]);
+  // Los que entraron con la carrera en marcha la ven desde el lobby: no cuentan en la parrilla.
+  const racers = room.players.filter((p) => !p.spectator);
+
+  // Practicando solo, corres contra tu mejor carrera grabada (se fija al empezar).
+  const [ghost] = useState(() => (racers.length === 1 ? getGhost() : null));
+  // Esta carrera se graba (caracteres correctos en el tiempo) para usarla de fantasma si es
+  // tu mejor marca. Si la retomamos tras recargar, la grabación estaría incompleta: no se guarda.
+  const recording = useRef<GhostSample[] | null>((me?.progress ?? 0) === 0 ? [] : null);
 
   // Si volvemos a una carrera ya empezada (recarga), se retoma desde lo que confirmó el servidor.
   const [typing, setTyping] = useState(() => createTypingState(text, me?.progress ?? 0));
@@ -72,7 +82,11 @@ export default function Race({ room, myId }: Props) {
   const percent = Math.round((view.correctChars / text.length) * 100);
   const rank =
     me?.position ??
-    1 + room.players.filter((p) => p.id !== myId && (p.position !== null || p.progress > view.correctChars)).length;
+    1 + racers.filter((p) => p.id !== myId && (p.position !== null || p.progress > view.correctChars)).length;
+  const ghostLane =
+    ghost && me
+      ? { ratio: ghostCharsAt(ghost.samples, elapsed) / text.length, wpm: ghost.wpm, car: me.car, color: me.color }
+      : null;
 
   // Volver a la sala: dejamos de correr pero seguimos en ella (vemos el lobby hasta que termine).
   // Salir de la sala lleva al inicio, que avisa al servidor; en la pista quedamos como "se fue".
@@ -80,12 +94,12 @@ export default function Race({ room, myId }: Props) {
   const block = (e: { preventDefault: () => void }) => e.preventDefault();
 
   return (
-    <div className={styles.race} data-fit>
+    <div className={styles.race} data-fit data-race>
       <div className={styles.hud}>
         <Speedometer value={wpm} size={112} />
         <div className={styles.position}>
           <span className={`${styles.pos} num`}>P{rank}</span>
-          <span className={styles.posOf}>de {room.players.length}</span>
+          <span className={styles.posOf}>de {racers.length}</span>
         </div>
         <div className={styles.stats}>
           <Stat label="precisión" value={`${accuracy}%`} />
@@ -167,7 +181,16 @@ export default function Race({ room, myId }: Props) {
               if (!started) return;
               const next = applyInput(words, typing, e.target.value);
               setTyping(next);
-              if (viewOf(words, next).finished) setFinishedAt(serverNow());
+              const nextView = viewOf(words, next);
+              const t = serverNow();
+              const samples = recording.current;
+              if (samples && nextView.correctChars > (samples.at(-1)?.[1] ?? 0)) {
+                samples.push([Math.round(t - startAt), nextView.correctChars]);
+              }
+              if (nextView.finished) {
+                setFinishedAt(t);
+                if (samples) saveGhost({ wpm: Math.round(calcWpm(nextView.correctChars, t - startAt)), samples });
+              }
             }}
             onPaste={block}
             onDrop={block}
@@ -183,7 +206,7 @@ export default function Race({ room, myId }: Props) {
       </div>
 
       <div className={styles.trackArea}>
-        <Track room={room} myId={myId} myProgress={view.correctChars} live={started} fit />
+        <Track room={room} myId={myId} myProgress={view.correctChars} live={started} fit ghost={ghostLane} />
       </div>
     </div>
   );
