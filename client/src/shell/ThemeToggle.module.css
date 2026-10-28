@@ -19,7 +19,8 @@
   border-radius: 50%;
   background: var(--surface);
   box-shadow: var(--shadow);
-  transition: transform 0.25s cubic-bezier(0.3, 0.7, 0.2, 1);
+  /* Toggle (transitions.dev): recorrido con doble rebote. */
+  transition: transform var(--toggle-dur) var(--toggle-ease);
 }
 
 .right {

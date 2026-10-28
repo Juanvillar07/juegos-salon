@@ -62,13 +62,3 @@ export interface PlayerProgress {
   words: number;
   syllableIndex: number;
 }
-
-/** Una palabra aceptada, para el registro de jugadas que ven todos. */
-export interface WordPlay {
-  playerId: string;
-  nickname: string;
-  color: string;
-  word: string;
-  syllable: string;
-  points: number;
-}

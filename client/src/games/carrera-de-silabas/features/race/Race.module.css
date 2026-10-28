@@ -1,10 +1,7 @@
-/* Zona de juego: la sílaba y el campo a la izquierda, el registro de palabras a la derecha.
-   El HUD, el semáforo y la pista reutilizan los estilos de Rally de Letras. */
+/* Zona de juego: la sílaba y el campo para escribir. Las palabras de los demás no se muestran
+   (servían para copiarlas). El HUD, el semáforo y la pista reutilizan los estilos de Rally de Letras. */
 .play {
   position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(220px, 320px);
-  gap: 28px;
   flex-shrink: 0;
 }
 
@@ -21,20 +18,11 @@
   gap: 6px;
 }
 
-/* La sílaba es la protagonista: entra con un pequeño golpe cada vez que cambia. */
 .syllable {
   font-size: clamp(3.2rem, 7vw, 5rem);
   font-weight: 700;
   letter-spacing: 0.04em;
   line-height: 1;
-  animation: pop 0.3s cubic-bezier(0.3, 0.7, 0.3, 1.5);
-}
-
-@keyframes pop {
-  from {
-    opacity: 0;
-    transform: scale(0.7);
-  }
 }
 
 .upcoming {
@@ -70,6 +58,17 @@
   border-bottom-color: var(--good);
 }
 
+/* Contenedor que se sacude (t-input, Error state shake de transitions.dev). */
+.inputWrap {
+  max-width: 420px;
+}
+
+/* Palabra rechazada: borde de error mientras se lee el aviso. */
+.inputWrap:global(.is-error) .input {
+  border-bottom-color: var(--bad);
+  transition: border-color var(--revert-dur) var(--ease-out);
+}
+
 .feedback {
   min-height: 1.4em;
   font-size: 0.95rem;
@@ -78,95 +77,8 @@
 
 .ok {
   color: var(--good);
-  animation: rise 0.25s ease-out;
 }
 
 .bad {
   color: var(--bad);
-  animation: shake 0.3s ease-in-out;
-}
-
-@keyframes rise {
-  from {
-    opacity: 0;
-    transform: translateY(4px);
-  }
-}
-
-@keyframes shake {
-  25% {
-    transform: translateX(-5px);
-  }
-  75% {
-    transform: translateX(5px);
-  }
-}
-
-/* ------------------------------------------------------------ registro */
-
-.feed {
-  list-style: none;
-  margin: 0;
-  padding: 12px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
-  background: var(--surface);
-  font-size: 0.88rem;
-  max-height: 210px;
-  overflow: hidden;
-}
-
-.feed li {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  animation: rise 0.25s ease-out;
-}
-
-.feed li:not(:first-child) {
-  opacity: 0.75;
-}
-
-.who {
-  color: var(--muted);
-  flex-shrink: 0;
-  max-width: 90px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.mine .who {
-  color: var(--text);
-  font-weight: 600;
-}
-
-.word {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.word mark {
-  background: none;
-  color: var(--text);
-  font-weight: 700;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
-.points {
-  color: var(--good);
-  font-weight: 600;
-}
-
-@media (max-width: 760px) {
-  .play {
-    grid-template-columns: 1fr;
-  }
 }

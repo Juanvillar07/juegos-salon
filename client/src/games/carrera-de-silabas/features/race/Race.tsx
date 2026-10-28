@@ -5,13 +5,13 @@ import {
   checkWordShape,
   normalizeWord,
   type RoomState,
-  type WordPlay,
 } from '@typeracer/shared/carrera-de-silabas';
 import Speedometer from '../../../rally-de-letras/components/Speedometer';
 import TrafficLight from '../../../rally-de-letras/components/TrafficLight';
 import { formatCountdown } from '../../../rally-de-letras/lib/format';
+import { PopNumber, SwapIn, useShake } from '../../../../shell/transitions';
 import ScoreTrack, { liveRanking } from '../../components/ScoreTrack';
-import { cancelRace, retireFromRace, submitWord, useClientState } from '../../state/store';
+import { cancelRace, retireFromRace, submitWord } from '../../state/store';
 import { GAME_HOME } from '../../routes';
 import { useServerClock } from './useServerClock';
 import rally from '../../../rally-de-letras/features/race/Race.module.css';
@@ -28,14 +28,11 @@ const GO_VISIBLE_MS = 900;
 const HURRY_MS = 10_000;
 /** Sílabas siguientes que se dejan ver. */
 const UPCOMING = 3;
-/** Jugadas que se muestran en el registro. */
-const FEED_SIZE = 8;
 
 type Feedback = { id: number; ok: boolean; text: string };
 
 export default function Race({ room, myId }: Props) {
   const navigate = useNavigate();
-  const { plays } = useClientState();
   const syllables = room.syllables!;
   const startAt = room.startAt!;
   const target = room.settings.target;
@@ -73,7 +70,13 @@ export default function Race({ room, myId }: Props) {
   const word = normalizeWord(draft);
   const containsSyllable = word.length > 0 && word.includes(syllable);
 
-  const show = (ok: boolean, text: string) => setFeedback({ id: Date.now(), ok, text });
+  // Palabra rechazada: el campo se sacude y queda marcado mientras se lee el aviso.
+  const { ref: shakeRef, shake, clear: clearShake } = useShake<HTMLDivElement>();
+  const show = (ok: boolean, text: string) => {
+    setFeedback({ id: Date.now(), ok, text });
+    if (ok) clearShake();
+    else shake();
+  };
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -106,8 +109,8 @@ export default function Race({ room, myId }: Props) {
           <span className={rally.posOf}>de {room.players.length}</span>
         </div>
         <div className={rally.stats}>
-          <Stat label="palabras" value={String(me?.words ?? 0)} />
-          <Stat label="faltan" value={`${Math.max(0, target - score)} pts`} />
+          <Stat label="palabras" value={String(me?.words ?? 0)} pop />
+          <Stat label="faltan" value={`${Math.max(0, target - score)} pts`} pop />
           <Stat label="restante" value={formatCountdown(remaining)} hurry={started && remaining < HURRY_MS} />
         </div>
         <div className={rally.leave}>
@@ -163,8 +166,9 @@ export default function Race({ room, myId }: Props) {
             <>
               <div className={styles.prompt}>
                 <span className="label">Escribe una palabra con</span>
-                <span key={index} className={`${styles.syllable} num`}>
-                  {syllable.toUpperCase()}
+                {/* La sílaba nueva entra al instante (solo la mitad de entrada del Text states swap). */}
+                <span className={`${styles.syllable} num`}>
+                  <SwapIn key={index}>{syllable.toUpperCase()}</SwapIn>
                 </span>
                 <span className={styles.upcoming}>
                   después:{' '}
@@ -175,37 +179,39 @@ export default function Race({ room, myId }: Props) {
               </div>
 
               <form className={styles.form} onSubmit={onSubmit}>
-                <input
-                  ref={inputRef}
-                  className={`${styles.input} ${containsSyllable ? styles.contains : ''}`}
-                  value={draft}
-                  maxLength={MAX_WORD_LENGTH}
-                  onChange={(e) => setDraft(e.target.value)}
-                  onPaste={block}
-                  onDrop={block}
-                  onContextMenu={block}
-                  disabled={!started || confirmLeave}
-                  placeholder={started ? 'escribe y pulsa Enter' : 'prepárate…'}
-                  autoComplete="off"
-                  autoCorrect="off"
-                  autoCapitalize="off"
-                  spellCheck={false}
-                  aria-label={`Palabra que contenga ${syllable}`}
-                />
+                <div ref={shakeRef} className={`t-input ${styles.inputWrap}`}>
+                  <input
+                    ref={inputRef}
+                    className={`${styles.input} ${containsSyllable ? styles.contains : ''}`}
+                    value={draft}
+                    maxLength={MAX_WORD_LENGTH}
+                    onChange={(e) => {
+                      setDraft(e.target.value);
+                      clearShake();
+                    }}
+                    onPaste={block}
+                    onDrop={block}
+                    onContextMenu={block}
+                    disabled={!started || confirmLeave}
+                    placeholder={started ? 'escribe y pulsa Enter' : 'prepárate…'}
+                    autoComplete="off"
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    spellCheck={false}
+                    aria-label={`Palabra que contenga ${syllable}`}
+                  />
+                </div>
                 {/* Siempre ocupa su línea, para que la pista no salte al aparecer un aviso. */}
                 <span
-                  key={feedback?.id}
                   className={`${styles.feedback} ${feedback ? (feedback.ok ? styles.ok : styles.bad) : ''}`}
                   role="status"
                 >
-                  {feedback?.text}
+                  {feedback && <SwapIn key={feedback.id}>{feedback.text}</SwapIn>}
                 </span>
               </form>
             </>
           )}
         </div>
-
-        <Feed plays={plays} myId={myId} />
       </div>
 
       <div className={rally.trackArea}>
@@ -215,41 +221,12 @@ export default function Race({ room, myId }: Props) {
   );
 }
 
-/** Últimas palabras acertadas por todos, con la sílaba resaltada. */
-function Feed({ plays, myId }: { plays: WordPlay[]; myId: string }) {
-  const recent = plays.slice(-FEED_SIZE).reverse();
-  return (
-    <ol className={styles.feed} aria-label="Últimas palabras">
-      {recent.length === 0 && <li className="muted">Aquí aparecerán las palabras de todos.</li>}
-      {recent.map((p, i) => (
-        <li key={`${plays.length - i}-${p.playerId}`} className={p.playerId === myId ? styles.mine : undefined}>
-          <span className="dot" style={{ background: p.color }} />
-          <span className={styles.who}>{p.playerId === myId ? 'Tú' : p.nickname}</span>
-          <Highlight word={p.word} syllable={p.syllable} />
-          <span className={`${styles.points} num`}>+{p.points}</span>
-        </li>
-      ))}
-    </ol>
-  );
-}
-
-function Highlight({ word, syllable }: { word: string; syllable: string }) {
-  const at = word.indexOf(syllable);
-  if (at < 0) return <span className={styles.word}>{word}</span>;
-  return (
-    <span className={styles.word}>
-      {word.slice(0, at)}
-      <mark>{syllable}</mark>
-      {word.slice(at + syllable.length)}
-    </span>
-  );
-}
-
-function Stat({ label, value, hurry }: { label: string; value: string; hurry?: boolean }) {
+/** `pop`: las cifras que cambian entran con el Number pop-in (no para el reloj, que cambia cada segundo). */
+function Stat({ label, value, hurry, pop }: { label: string; value: string; hurry?: boolean; pop?: boolean }) {
   return (
     <div className={`${rally.stat} ${hurry ? rally.hurry : ''}`}>
       <span className={rally.statLabel}>{label}</span>
-      <span className={`${rally.statValue} num`}>{value}</span>
+      <span className={`${rally.statValue} num`}>{pop ? <PopNumber value={value} /> : value}</span>
     </div>
   );
 }

@@ -25,14 +25,7 @@ export function registerRaceHandlers(socket: ClientSocket, ctx: RealtimeContext)
       syllableIndex: player.syllableIndex,
       finished: res.finishedPosition !== null,
     });
-    io.to(room.code).emit('race:word', {
-      playerId,
-      nickname: player.nickname,
-      color: player.color,
-      word: res.word,
-      syllable: res.syllable,
-      points: res.points,
-    });
+    // A los demás solo les llega el marcador, nunca la palabra: verla servía para copiarla.
     io.to(room.code).emit('race:progress', { players: manager.getProgress(room) });
     if (res.finishedPosition !== null) {
       io.to(room.code).emit('race:playerFinished', {

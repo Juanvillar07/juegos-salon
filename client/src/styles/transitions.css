@@ -1,0 +1,248 @@
+/* Transiciones de transitions.dev (Jakub Antalik), adaptadas al proyecto.
+   Licencia: uso libre en proyectos propios, incluso comerciales; no se puede redistribuir
+   la biblioteca como producto (https://github.com/Jakubantalik/transitions.dev/blob/main/LICENSE).
+
+   Tokens de movimiento compartidos y las recetas que usa el salón:
+     t-toast        notificaciones de la sala (Toast open / close)
+     t-input        palabra rechazada en Carrera de Sílabas (Error state shake)
+     t-text-swap    la sílaba y el aviso que cambian en el sitio (Text states swap, solo la entrada)
+     t-digit-group  marcadores que cambian (Number pop-in)
+     t-stagger      titulares del portal y de las portadas (Texts reveal)
+     t-tabs-pill    selectores segmentados (Tabs sliding)
+   Todas respetan prefers-reduced-motion. */
+
+:root {
+  /* Duraciones */
+  --duration-stagger: 40ms; /* desfase entre elementos */
+  --duration-micro: 80ms; /* tramo de sacudida */
+  --duration-quick: 150ms; /* cierre de menús, cambio de texto */
+  --duration-fast: 250ms; /* apertura de menús, pestañas, cambios de posición */
+  --duration-medium: 350ms; /* cierre de paneles y toasts */
+  --duration-slow: 400ms; /* apertura de paneles */
+  --duration-very-slow: 500ms; /* momentos de énfasis, revelado de texto */
+  /* Curvas */
+  --ease-smooth-out: cubic-bezier(0.22, 1, 0.36, 1); /* abrir/cerrar, cambios de posición */
+  --ease-in-out: ease-in-out; /* cambios de texto */
+  --ease-out: ease-out;
+  --ease-linear: linear;
+  --ease-bounce: cubic-bezier(0.34, 1.36, 0.64, 1); /* aparición de insignias */
+  /* Distancias, escalas y desenfoques */
+  --distance-micro: 4px;
+  --distance-small: 6px;
+  --distance-base: 8px;
+  --distance-medium: 12px;
+  --scale-medium: 0.97;
+  --blur-small: 2px;
+  --blur-medium: 3px;
+
+  /* Toast open / close */
+  --toast-open: 350ms;
+  --toast-close: 250ms;
+  --toast-distance: 16px;
+  --toast-blur: 2px;
+  --toast-scale: 0.97;
+  --toast-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  /* Error state shake */
+  --shake-distance: 6px;
+  --shake-overshoot: 4px;
+  --shake-dur-a: 80ms;
+  --shake-dur-b: 60ms;
+  --shake-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --revert-hold: 3000ms;
+  --revert-dur: 280ms;
+  /* Text states swap */
+  --text-swap-dur: 150ms;
+  --text-swap-translate-y: 4px;
+  --text-swap-blur: 2px;
+  --text-swap-ease: ease-in-out;
+  /* Number pop-in */
+  --digit-dur: 500ms;
+  --digit-distance: 8px;
+  --digit-stagger: 70ms;
+  --digit-blur: 2px;
+  --digit-ease: cubic-bezier(0.34, 1.45, 0.64, 1);
+  --digit-dir-x: 0;
+  --digit-dir-y: 1;
+  /* Texts reveal */
+  --stagger-dur: 500ms;
+  --stagger-distance: 12px;
+  --stagger-stagger: 40ms;
+  --stagger-blur: 3px;
+  --stagger-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  /* Tabs sliding (los colores salen del tema claro/oscuro) */
+  --tabs-dur: 250ms;
+  --tabs-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  /* Toggle */
+  --toggle-dur: 350ms;
+  --toggle-ease: cubic-bezier(0.34, 1.35, 0.64, 1);
+}
+
+/* ------------------------------------------------------------ Toast open / close */
+
+.t-toast {
+  opacity: 0;
+  transform: translateY(var(--toast-distance)) scale(var(--toast-scale));
+  filter: blur(var(--toast-blur));
+  will-change: transform, opacity, filter;
+  transition:
+    opacity var(--toast-close) var(--toast-ease),
+    transform var(--toast-close) var(--toast-ease),
+    filter var(--toast-close) var(--toast-ease);
+}
+.t-toast.is-open {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  filter: blur(0);
+  transition:
+    opacity var(--toast-open) var(--toast-ease),
+    transform var(--toast-open) var(--toast-ease),
+    filter var(--toast-open) var(--toast-ease);
+}
+
+/* ------------------------------------------------------------ Error state shake */
+
+.t-input {
+  will-change: transform;
+}
+.t-input.is-shaking {
+  animation: t-input-shake calc(var(--shake-dur-a) * 2 + var(--shake-dur-b) * 2) linear;
+}
+/* Cada tramo con su propia curva: 80, 60, 80, 60 ms = 28.57 %, 57.14 %, 78.57 %, 100 %. */
+@keyframes t-input-shake {
+  0% {
+    transform: translateX(0);
+    animation-timing-function: var(--shake-ease);
+  }
+  28.57% {
+    transform: translateX(var(--shake-distance));
+    animation-timing-function: var(--shake-ease);
+  }
+  57.14% {
+    transform: translateX(calc(var(--shake-distance) * -1));
+    animation-timing-function: var(--shake-ease);
+  }
+  78.57% {
+    transform: translateX(var(--shake-overshoot));
+    animation-timing-function: var(--shake-ease);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+/* ------------------------------------------------------------ Text states swap */
+
+.t-text-swap {
+  display: inline-block;
+  transform: translateY(0);
+  filter: blur(0);
+  opacity: 1;
+  transition:
+    transform var(--text-swap-dur) var(--text-swap-ease),
+    filter var(--text-swap-dur) var(--text-swap-ease),
+    opacity var(--text-swap-dur) var(--text-swap-ease);
+  will-change: transform, filter, opacity;
+}
+.t-text-swap.is-enter-start {
+  transform: translateY(var(--text-swap-translate-y));
+  filter: blur(var(--text-swap-blur));
+  opacity: 0;
+  transition: none;
+}
+
+/* ------------------------------------------------------------ Number pop-in */
+
+@keyframes t-digit-pop-in {
+  0% {
+    transform: translate(
+      calc(var(--digit-distance) * var(--digit-dir-x)),
+      calc(var(--digit-distance) * var(--digit-dir-y))
+    );
+    opacity: 0;
+    filter: blur(var(--digit-blur));
+  }
+  100% {
+    transform: translate(0, 0);
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+.t-digit-group {
+  display: inline-flex;
+  align-items: baseline;
+}
+.t-digit {
+  display: inline-block;
+  white-space: pre;
+  will-change: transform, opacity, filter;
+}
+.t-digit-group.is-animating .t-digit {
+  animation: t-digit-pop-in var(--digit-dur) var(--digit-ease) both;
+}
+.t-digit-group.is-animating .t-digit[data-stagger='1'] {
+  animation-delay: var(--digit-stagger);
+}
+.t-digit-group.is-animating .t-digit[data-stagger='2'] {
+  animation-delay: calc(var(--digit-stagger) * 2);
+}
+.t-digit-group.is-animating .t-digit[data-same] {
+  animation: none;
+}
+
+/* ------------------------------------------------------------ Texts reveal */
+
+.t-stagger-line {
+  display: block;
+  opacity: 0;
+  transform: translateY(var(--stagger-distance));
+  filter: blur(var(--stagger-blur));
+  transition:
+    opacity var(--stagger-dur) var(--stagger-ease),
+    transform var(--stagger-dur) var(--stagger-ease),
+    filter var(--stagger-dur) var(--stagger-ease);
+  will-change: transform, opacity, filter;
+}
+.t-stagger.is-shown .t-stagger-line {
+  opacity: 1;
+  transform: translateY(0);
+  filter: blur(0);
+}
+
+/* ------------------------------------------------------------ Tabs sliding */
+/* La píldora se mide y se coloca con JS (useSlidingPill). Los selectores pueden ocupar dos
+   filas, así que también se mueve en vertical y toma el alto de la opción activa. */
+
+.t-tabs-pill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  transform: translate(0, 0);
+  transition:
+    transform var(--tabs-dur) var(--tabs-ease),
+    width var(--tabs-dur) var(--tabs-ease),
+    height var(--tabs-dur) var(--tabs-ease);
+  will-change: transform, width;
+  pointer-events: none;
+  z-index: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .t-toast,
+  .t-text-swap,
+  .t-stagger-line,
+  .t-tabs-pill {
+    transition: none !important;
+  }
+  .t-input {
+    animation: none !important;
+    transform: none !important;
+  }
+  .t-digit-group .t-digit {
+    animation: none !important;
+  }
+}

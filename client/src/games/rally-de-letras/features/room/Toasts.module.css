@@ -18,14 +18,7 @@
   box-shadow: var(--shadow);
   font-size: 0.9rem;
   font-weight: 500;
-  animation: rise 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
-@keyframes rise {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
+  /* Entrada y salida: t-toast (transitions.dev). */
 }
 
 .error {

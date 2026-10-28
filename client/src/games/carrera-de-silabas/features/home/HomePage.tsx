@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { revealDelay, useReveal } from '../../../../shell/transitions';
 import { MAX_NICKNAME_LENGTH, MAX_PLAYERS, ROOM_CODE_LENGTH } from '@typeracer/shared';
 import Garage from '../../../rally-de-letras/components/Garage';
 import CarSprite from '../../../rally-de-letras/components/cars/CarSprite';
@@ -10,6 +11,7 @@ import styles from '../../../rally-de-letras/features/home/HomePage.module.css';
 
 export default function HomePage() {
   const navigate = useNavigate();
+  const reveal = useReveal();
   const { sessionReady } = useClientState();
   const [nickname, setNickname] = useState(getLastNickname);
   const [car, setCar] = useState(getCarChoice);
@@ -53,16 +55,22 @@ export default function HomePage() {
 
   return (
     <div className={styles.layout} data-fit>
-      <section className={styles.hero}>
-        <span className="label">Carrera de Sílabas</span>
+      <section className={`${styles.hero} ${reveal}`}>
+        <span className="label t-stagger-line" style={revealDelay(0)}>
+          Carrera de Sílabas
+        </span>
         <h1 className={styles.title}>
-          Piensa.
-          <br />
-          <span>Escribe.</span>
-          <br />
-          Gana.
+          <span className="t-stagger-line" style={revealDelay(1)}>
+            Piensa.
+          </span>
+          <span className={`t-stagger-line ${styles.dim}`} style={revealDelay(2)}>
+            Escribe.
+          </span>
+          <span className="t-stagger-line" style={revealDelay(3)}>
+            Gana.
+          </span>
         </h1>
-        <p className={styles.lead}>
+        <p className={`${styles.lead} t-stagger-line`} style={revealDelay(4)}>
           Hasta {MAX_PLAYERS} pilotos con las mismas sílabas: escribe palabras que las contengan y cada letra suma un
           punto.
         </p>
