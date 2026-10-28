@@ -151,7 +151,14 @@ Socket.IO funciona sobre WebSockets en ambos servicios sin configuración extra.
   - **Salir de la sala** (`room:leave`): queda como "se fue" en la pista.
   - **Cancelar carrera** (`race:cancel`, solo el host): todos vuelven al lobby sin resultados. El host también puede cancelar desde el lobby si volvió a la sala.
 - **Cuándo termina la carrera**: cuando los que siguen corriendo han llegado. Si ya nadie corre, hay resultados si alguien llegó; si no, la carrera se cancela y todos vuelven al lobby.
-- **Ajustes de sala** (solo el host, fuera de carrera, evento `room:settings`): texto aleatorio del catálogo o un texto pegado (20–1500 caracteres) y límite de tiempo (15 s a 15 min; la interfaz ofrece de 30 s a 10 min). El texto pegado se normaliza en el servidor: comillas y guiones tipográficos pasan a su versión simple y los saltos de línea y espacios repetidos se reducen a un espacio.
+- **Ajustes de sala** (solo el host, fuera de carrera, evento `room:settings`):
+  - **Texto:** aleatorio del catálogo o pegado (20–1500 caracteres). El pegado se normaliza en el servidor: comillas y guiones tipográficos pasan a su versión simple, y los saltos de línea y espacios repetidos se reducen a un espacio.
+  - **Longitud del texto aleatorio:** cualquiera, corto (menos de 200 caracteres), medio (200–300) o largo (más de 300). Una sala no repite ninguno de sus últimos 30 textos.
+  - **Sin signos:** quita ¿, ¡ y comillas de los textos del catálogo, para quien juega con teclado en inglés. El texto pegado se escribe tal cual.
+  - **Límite de tiempo:** de 15 s a 15 min; la interfaz ofrece de 30 s a 10 min.
+- **Entrar con la carrera en marcha**: quien llega con el enlace en plena carrera entra como espectador. Ve la carrera en vivo desde el lobby, no tiene auto en la pista ni sale en los resultados, y corre la siguiente.
+- **Marcador de la sala**: cada jugador acumula carreras terminadas, mejor WPM y victorias mientras siga en la sala. Las victorias solo cuentan en carreras de 2 o más pilotos. Se ve en la parrilla y en los resultados.
+- **Auto fantasma**: el navegador graba el ritmo de tu mejor carrera (caracteres correctos en el tiempo). Al practicar solo, un auto atenuado lo reproduce sobre el texto actual, para que corras contra tu mejor marca aunque el texto sea otro.
 - Se ignoran actualizaciones de progreso antes del inicio, que no aumentan, que superan la longitud del texto o que implican más de 250 WPM desde el inicio. El cliente reenvía su progreso si el servidor no lo confirmó.
 - La precisión usa los errores que reporta el cliente; es informativa y no afecta las posiciones.
 - Cada pestaña guarda en `sessionStorage` un `sessionId` secreto que manda al conectar. Así, al **recargar la página** el servidor reconoce al jugador y le devuelve su lugar (incluido el progreso si estaba en plena carrera).
@@ -162,7 +169,7 @@ Socket.IO funciona sobre WebSockets en ambos servicios sin configuración extra.
 
 Salas, listos, chat, salir de la carrera (volver a la sala, salir o cancelar), abandono y reconexión funcionan igual que en Rally de Letras. Lo propio del juego:
 
-- **Meta** (`room:settings`, solo el host): 100 o 200 puntos. Hay además un límite de seguridad de 5 minutos; si se cumple, los que no llegaron se ordenan por puntos.
+- **Meta y tiempo** (`room:settings`, solo el host): 100 o 200 puntos, y un límite de tiempo de 2, 3, 5 (por defecto), 7 o 10 minutos. Si se acaba el tiempo, los que no llegaron se ordenan por puntos.
 - **Sílabas**: al empezar, el servidor sortea una secuencia de sílabas (de 2 o 3 letras, con vocal, que aparecen en al menos 3000 palabras del diccionario) que es la misma para todos. Cada jugador avanza por ella a su ritmo: al acertar pasa a la siguiente.
 - **Palabras** (`race:word`, con respuesta): se pasan a minúsculas y sin tildes (la ñ se respeta) y deben tener solo letras, entre 3 y 30, contener la sílaba actual, estar en el diccionario y no haberse usado antes en la carrera. Cada palabra aceptada suma un punto por letra. Hay un mínimo de 0,3 s entre intentos.
 - **Diccionario**: el paquete [`an-array-of-spanish-words`](https://github.com/words/an-array-of-spanish-words) (MIT, ~636 000 palabras con conjugaciones), cargado una sola vez al arrancar el servidor (unos 50 MB de memoria). No se envía al navegador.

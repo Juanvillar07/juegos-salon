@@ -69,7 +69,3 @@
   transition: transform 0.25s linear;
 }
 
-.leave {
-  padding-top: 6px !important;
-  padding-bottom: 6px !important;
-}

@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
 import type { RoomState } from '@typeracer/shared/carrera-de-silabas';
 import { formatCountdown } from '../../../rally-de-letras/lib/format';
 import { cancelRace } from '../../state/store';
@@ -7,6 +6,7 @@ import { GAME_HOME } from '../../routes';
 import { useServerClock } from '../race/useServerClock';
 import race from '../../../rally-de-letras/features/race/Race.module.css';
 import styles from '../../../rally-de-letras/features/lobby/StartPanel.module.css';
+import ExitRoomLink from '../../../../shell/ExitRoomLink';
 
 interface Props {
   room: RoomState;
@@ -49,9 +49,7 @@ export default function RaceInProgress({ room, isHost }: Props) {
           </button>
         ))}
 
-      <Link to={GAME_HOME} className={`btn ghost wide ${styles.leave}`}>
-        Salir de la sala
-      </Link>
+      <ExitRoomLink to={GAME_HOME} wide />
     </section>
   );
 }

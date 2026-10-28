@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
 import { AUTO_START_MS, type RoomState } from '@typeracer/shared';
 import { GAME_HOME } from '../../routes';
 import { setReady, startRace } from '../../state/store';
 import { useServerClock } from '../race/useServerClock';
 import styles from './StartPanel.module.css';
+import ExitRoomLink from '../../../../shell/ExitRoomLink';
 
 interface Props {
   room: RoomState;
@@ -77,9 +77,7 @@ export default function StartPanel({ room, myId, isHost }: Props) {
         </div>
       )}
 
-      <Link to={GAME_HOME} className={`btn ghost wide ${styles.leave}`}>
-        Salir de la sala
-      </Link>
+      <ExitRoomLink to={GAME_HOME} wide />
     </section>
   );
 }

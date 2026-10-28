@@ -101,7 +101,7 @@ export default function Race({ room, myId }: Props) {
   const block = (e: { preventDefault: () => void }) => e.preventDefault();
 
   return (
-    <div className={rally.race} data-fit>
+    <div className={rally.race} data-fit data-race>
       <div className={rally.hud}>
         <Speedometer value={score} max={target} label="pts" size={112} />
         <div className={rally.position}>

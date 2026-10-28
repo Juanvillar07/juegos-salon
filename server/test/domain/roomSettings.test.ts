@@ -24,7 +24,12 @@ describe('RoomManager: ajustes de sala', () => {
   it('empieza con texto aleatorio y 3 minutos', () => {
     const { room, manager } = setup();
     expect(room.settings).toEqual(DEFAULT_SETTINGS);
-    expect(manager.toState(room).settings).toEqual({ timeLimitSec: 180, customText: null });
+    expect(manager.toState(room).settings).toEqual({
+      timeLimitSec: 180,
+      customText: null,
+      textLength: 'any',
+      plainText: false,
+    });
   });
 
   it('el host puede pegar un texto propio y se usa al empezar', () => {
@@ -94,6 +99,6 @@ describe('RoomManager: ajustes de sala', () => {
     advance(COUNTDOWN_MS + 1000);
     manager.endRace(room.code);
     manager.resetToLobby('a');
-    expect(room.settings).toEqual({ customText: CUSTOM, timeLimitSec: 90 });
+    expect(room.settings).toEqual({ customText: CUSTOM, timeLimitSec: 90, textLength: 'any', plainText: false });
   });
 });

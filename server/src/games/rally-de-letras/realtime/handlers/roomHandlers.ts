@@ -58,6 +58,8 @@ export function registerRoomHandlers(socket: ClientSocket, ctx: RealtimeContext)
     const res = manager.updateSettings(playerId, {
       timeLimitSec: patch?.timeLimitSec,
       customText: patch?.customText,
+      textLength: patch?.textLength,
+      plainText: patch?.plainText,
     });
     if (!res.ok) return ack(res);
     ack({ ok: true });

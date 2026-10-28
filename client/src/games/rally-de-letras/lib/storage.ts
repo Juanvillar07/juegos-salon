@@ -1,4 +1,5 @@
 import { CAR_COLORS, DEFAULT_CAR, isCarColor, isCarModel, type CarModel } from '@typeracer/shared';
+import { isGhost, type Ghost } from './ghost';
 
 // sessionStorage es por pestaña y sobrevive a recargas: ideal para identificar al jugador
 // de cada pestaña. localStorage guarda preferencias que conviene recordar entre visitas.
@@ -7,6 +8,7 @@ const TAB_NICKNAME_KEY = 'typeracer:tab-nickname';
 const LAST_NICKNAME_KEY = 'typeracer:nickname';
 const CAR_KEY = 'typeracer:car';
 const BEST_WPM_KEY = 'typeracer:best-wpm';
+const GHOST_KEY = 'typeracer:ghost';
 
 function read(storage: () => Storage, key: string): string | null {
   try {
@@ -95,6 +97,23 @@ export function getBestWpm(): number {
 export function subscribeBestWpm(listener: () => void): () => void {
   bestWpmListeners.add(listener);
   return () => bestWpmListeners.delete(listener);
+}
+
+/** Tu mejor carrera grabada, para correr contra ella en práctica. */
+export function getGhost(): Ghost | null {
+  try {
+    const parsed: unknown = JSON.parse(read(local, GHOST_KEY) ?? 'null');
+    return isGhost(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Guarda la carrera como fantasma si supera la marca del fantasma actual. */
+export function saveGhost(ghost: Ghost): boolean {
+  if (ghost.wpm <= (getGhost()?.wpm ?? 0)) return false;
+  write(local, GHOST_KEY, JSON.stringify(ghost));
+  return true;
 }
 
 /** Guarda el WPM si supera el récord. Devuelve true si es un récord nuevo. */

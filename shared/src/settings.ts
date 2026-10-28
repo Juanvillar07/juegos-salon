@@ -1,17 +1,58 @@
 import { RACE_LIMIT_MS } from './constants.js';
 
+/** Longitud de los textos del catálogo: cualquiera, o solo cortos, medios o largos. */
+export type TextLength = 'any' | 'short' | 'medium' | 'long';
+
+export const TEXT_LENGTH_OPTIONS: readonly TextLength[] = ['any', 'short', 'medium', 'long'];
+
+/** Caracteres de cada longitud del catálogo (el corto y el largo, abiertos por un lado). */
+export const TEXT_LENGTH_RANGES: Record<Exclude<TextLength, 'any'>, { min: number; max: number }> = {
+  short: { min: 0, max: 199 },
+  medium: { min: 200, max: 300 },
+  long: { min: 301, max: Infinity },
+};
+
 /** Configuración de la sala que elige el host. */
 export interface RoomSettings {
   /** Límite de tiempo de cada carrera, en segundos. */
   timeLimitSec: number;
   /** Texto pegado por el host; null = un texto aleatorio del catálogo en cada carrera. */
   customText: string | null;
+  /** Longitud de los textos aleatorios (no se aplica al texto pegado). */
+  textLength: TextLength;
+  /** Quita ¿ ¡ y comillas del texto, para quien juega con un teclado sin esas teclas. */
+  plainText: boolean;
 }
 
 export const DEFAULT_SETTINGS: RoomSettings = {
   timeLimitSec: RACE_LIMIT_MS / 1000,
   customText: null,
+  textLength: 'any',
+  plainText: false,
 };
+
+export function isTextLength(value: unknown): value is TextLength {
+  return (TEXT_LENGTH_OPTIONS as readonly unknown[]).includes(value);
+}
+
+/** Longitud del catálogo a la que pertenece un texto de `chars` caracteres. */
+export function textLengthOf(chars: number): Exclude<TextLength, 'any'> {
+  if (chars <= TEXT_LENGTH_RANGES.short.max) return 'short';
+  if (chars <= TEXT_LENGTH_RANGES.medium.max) return 'medium';
+  return 'long';
+}
+
+/**
+ * "Sin signos": quita los signos que faltan en los teclados en inglés (¿ ¡ y las comillas)
+ * y vuelve a dejar un solo espacio donde hiciera falta.
+ */
+export function stripSigns(text: string): string {
+  return text
+    .replace(/[¿¡"']/g, '')
+    .replace(/\s+/g, ' ')
+    .replace(/\s+([.,;:!?])/g, '$1')
+    .trim();
+}
 
 export const TIME_LIMIT_OPTIONS = [30, 60, 90, 120, 180, 300, 600] as const;
 export const MIN_TIME_LIMIT_SEC = 15;

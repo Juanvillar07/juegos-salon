@@ -1,7 +1,16 @@
-import type { PlayerInfo, RoomState } from '@typeracer/shared';
+import type { CarModel, PlayerInfo, RoomState } from '@typeracer/shared';
 import CarSprite from './cars/CarSprite';
 import StatusTag from './StatusTag';
 import styles from './Track.module.css';
+
+/** Carril extra con tu mejor carrera grabada (práctica en solitario). */
+export interface GhostLane {
+  /** Avance del fantasma, de 0 a 1. */
+  ratio: number;
+  wpm: number;
+  car: CarModel;
+  color: string;
+}
 
 interface Props {
   room: RoomState;
@@ -12,6 +21,7 @@ interface Props {
   live?: boolean;
   /** Ocupa el alto del contenedor: carriles y autos se encogen para que quepan todos. */
   fit?: boolean;
+  ghost?: GhostLane | null;
 }
 
 const CAR_WIDTH = 116;
@@ -27,15 +37,17 @@ function liveRanking(players: PlayerInfo[], progressOf: (p: PlayerInfo) => numbe
   return new Map(sorted.map((p, i) => [p.id, i + 1]));
 }
 
-export default function Track({ room, myId, myProgress, live = false, fit = false }: Props) {
+export default function Track({ room, myId, myProgress, live = false, fit = false, ghost = null }: Props) {
   const total = room.text?.length ?? 1;
+  // Quien entró con la carrera en marcha la ve desde el lobby: no tiene auto en la pista.
+  const players = room.players.filter((p) => !p.spectator);
   const progressOf = (p: PlayerInfo) =>
     p.id === myId && myProgress !== undefined ? Math.max(myProgress, p.progress) : p.progress;
-  const ranking = liveRanking(room.players, progressOf);
+  const ranking = liveRanking(players, progressOf);
 
   return (
     <div className={`${styles.track} ${fit ? styles.fit : ''}`} style={{ ['--car-width' as string]: `${CAR_WIDTH}px` }}>
-      {room.players.map((p) => {
+      {players.map((p) => {
         const mine = p.id === myId;
         const progress = progressOf(p);
         const ratio = Math.min(1, progress / total);
@@ -81,6 +93,36 @@ export default function Track({ room, myId, myProgress, live = false, fit = fals
           </div>
         );
       })}
+
+      {ghost && (
+        <div
+          className={`${styles.row} ${styles.away}`}
+          style={{ ['--p' as string]: Math.min(1, ghost.ratio), ['--car' as string]: ghost.color }}
+        >
+          <span className={`${styles.rank} num`}>–</span>
+          <div className={styles.who}>
+            <span className="nick">Tu mejor marca</span>
+            <span className={styles.sub}>fantasma</span>
+          </div>
+          <div className={styles.lane}>
+            <div className={styles.trail} />
+            <div className={styles.finish} />
+            <div className={styles.runner}>
+              <CarSprite
+                model={ghost.car}
+                color={ghost.color}
+                width={CAR_WIDTH}
+                moving={live && ghost.ratio > 0 && ghost.ratio < 1}
+                faded
+              />
+            </div>
+          </div>
+          <span className={`${styles.wpm} num`}>
+            {ghost.wpm}
+            <small>wpm</small>
+          </span>
+        </div>
+      )}
     </div>
   );
 }

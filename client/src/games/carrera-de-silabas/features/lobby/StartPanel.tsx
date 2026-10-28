@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
 import { AUTO_START_MS } from '@typeracer/shared';
 import type { RoomState } from '@typeracer/shared/carrera-de-silabas';
 import { GAME_HOME } from '../../routes';
 import { setReady, startRace } from '../../state/store';
 import { useServerClock } from '../race/useServerClock';
 import styles from '../../../rally-de-letras/features/lobby/StartPanel.module.css';
+import ExitRoomLink from '../../../../shell/ExitRoomLink';
 
 interface Props {
   room: RoomState;
@@ -78,9 +78,7 @@ export default function StartPanel({ room, myId, isHost }: Props) {
         </div>
       )}
 
-      <Link to={GAME_HOME} className={`btn ghost wide ${styles.leave}`}>
-        Salir de la sala
-      </Link>
+      <ExitRoomLink to={GAME_HOME} wide />
     </section>
   );
 }

@@ -65,6 +65,17 @@ describe('Carrera de Sílabas: ajustes', () => {
     expect(manager.updateSettings('b', { target: 200 }).ok).toBe(false);
   });
 
+  it('el límite de tiempo es de 5 minutos por defecto y el host lo cambia; marca el final de la carrera', () => {
+    const { manager } = setup();
+    const room = roomWith(manager, 'b');
+    expect(room.settings.timeLimitSec).toBe(RACE_LIMIT_MS / 1000);
+    expect(manager.updateSettings('a', { timeLimitSec: 120 }).ok).toBe(true);
+    expect(manager.updateSettings('a', { timeLimitSec: 90 }).ok).toBe(false);
+    expect(manager.updateSettings('b', { timeLimitSec: 600 }).ok).toBe(false);
+    manager.startRace('a');
+    expect(manager.toState(room).endsAt).toBe(room.startAt! + 120_000);
+  });
+
   it('no se puede cambiar la meta durante la carrera', () => {
     const { manager } = racing();
     expect(manager.updateSettings('a', { target: 200 }).ok).toBe(false);

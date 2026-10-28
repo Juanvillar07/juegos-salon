@@ -67,13 +67,16 @@ export function PopNumber({ value }: { value: string }) {
     setState({ shown: value, same: sharedPrefix(state.shown, value), run: state.run + 1 });
   }
   const chars = state.shown.split('');
+  // Las cifras sueltas son decorativas; el lector de pantalla lee el valor entero.
   return (
     <span className={`t-digit-group ${state.run > 0 ? 'is-animating' : ''}`}>
+      <span className="t-digit-label">{state.shown}</span>
       {chars.map((ch, i) => (
         <span
           // Una key nueva en cada cambio vuelve a montar las cifras y repite la animación.
           key={`${state.run}-${i}`}
           className="t-digit"
+          aria-hidden="true"
           data-same={i < state.same ? '' : undefined}
           data-stagger={i === chars.length - 2 ? '1' : i === chars.length - 1 ? '2' : undefined}
         >

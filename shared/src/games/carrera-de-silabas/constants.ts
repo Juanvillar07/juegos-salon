@@ -2,7 +2,7 @@
 export const GAME_ID = 'carrera-de-silabas';
 export const GAME_NAMESPACE = `/${GAME_ID}`;
 
-/** Límite de seguridad: si nadie llega a la meta, la carrera termina igual. */
+/** Límite de tiempo por defecto: si nadie llega a la meta, la carrera termina igual. */
 export const RACE_LIMIT_MS = 5 * 60 * 1000;
 export const MIN_WORD_LENGTH = 3;
 export const MAX_WORD_LENGTH = 30;
