@@ -2,11 +2,13 @@ import { useState } from 'react';
 import { CAR_MODEL_NAMES, MAX_PLAYERS, type RoomState } from '@typeracer/shared';
 import Garage from '../../components/Garage';
 import StatusTag from '../../components/StatusTag';
+import Track from '../../components/Track';
 import CarSprite from '../../components/cars/CarSprite';
 import { saveCarChoice, type CarChoice } from '../../lib/storage';
 import { customizeCar } from '../../state/store';
 import Chat from '../chat/Chat';
 import { roomPath } from '../../routes';
+import RaceInProgress from './RaceInProgress';
 import RoomSettingsPanel from './RoomSettingsPanel';
 import StartPanel from './StartPanel';
 import styles from './Lobby.module.css';
@@ -23,6 +25,8 @@ export default function Lobby({ room, myId, isHost }: Props) {
   const me = room.players.find((p) => p.id === myId)!;
   const takenColors = new Set(room.players.filter((p) => p.id !== myId).map((p) => p.color));
   const freeSlots = MAX_PLAYERS - room.players.length;
+  // Volvimos a la sala con la carrera en marcha: se ve en vivo en lugar de la parrilla.
+  const racing = room.phase === 'racing';
 
   const copy = async () => {
     try {
@@ -52,47 +56,60 @@ export default function Lobby({ room, myId, isHost }: Props) {
           </button>
         </header>
 
-        <section className={styles.section}>
-          <div className={styles.sectionHead}>
-            <span className="label">Parrilla de salida</span>
-            <span className="muted num">
-              {room.players.length}/{MAX_PLAYERS}
-            </span>
-          </div>
-          <ul className={styles.players}>
-            {room.players.map((p, i) => (
-              <li key={p.id} className={p.id === myId ? styles.mine : undefined}>
-                <span className={`${styles.slot} num`}>P{i + 1}</span>
-                <div className={styles.gridCar}>
-                  <CarSprite model={p.car} color={p.color} width={88} faded={p.status !== 'connected'} idle />
-                </div>
-                <div className={styles.playerInfo}>
-                  <span className="nick">{p.nickname}</span>
-                  <span className={styles.model}>{CAR_MODEL_NAMES[p.car]}</span>
-                </div>
-                <div className={styles.tags}>
-                  {p.ready && <span className="tag ready">listo</span>}
-                  {p.id === room.hostId && <span className="tag">host</span>}
-                  {p.id === myId && <span className="tag me">tú</span>}
-                  <StatusTag status={p.status} />
-                </div>
-              </li>
-            ))}
-          </ul>
-          {freeSlots > 0 && (
-            <p className={styles.free}>
-              {freeSlots === 1 ? 'Queda 1 lugar libre' : `Quedan ${freeSlots} lugares libres`}. Comparte el enlace para
-              invitar.
-            </p>
-          )}
-        </section>
+        {racing ? (
+          <section className={styles.section}>
+            <div className={styles.sectionHead}>
+              <span className="label">Carrera en curso</span>
+            </div>
+            <Track room={room} myId={myId} live />
+          </section>
+        ) : (
+          <section className={styles.section}>
+            <div className={styles.sectionHead}>
+              <span className="label">Parrilla de salida</span>
+              <span className="muted num">
+                {room.players.length}/{MAX_PLAYERS}
+              </span>
+            </div>
+            <ul className={styles.players}>
+              {room.players.map((p, i) => (
+                <li key={p.id} className={p.id === myId ? styles.mine : undefined}>
+                  <span className={`${styles.slot} num`}>P{i + 1}</span>
+                  <div className={styles.gridCar}>
+                    <CarSprite model={p.car} color={p.color} width={88} faded={p.status !== 'connected'} idle />
+                  </div>
+                  <div className={styles.playerInfo}>
+                    <span className="nick">{p.nickname}</span>
+                    <span className={styles.model}>{CAR_MODEL_NAMES[p.car]}</span>
+                  </div>
+                  <div className={styles.tags}>
+                    {p.ready && <span className="tag ready">listo</span>}
+                    {p.id === room.hostId && <span className="tag">host</span>}
+                    {p.id === myId && <span className="tag me">tú</span>}
+                    <StatusTag status={p.status} />
+                  </div>
+                </li>
+              ))}
+            </ul>
+            {freeSlots > 0 && (
+              <p className={styles.free}>
+                {freeSlots === 1 ? 'Queda 1 lugar libre' : `Quedan ${freeSlots} lugares libres`}. Comparte el enlace para
+                invitar.
+              </p>
+            )}
+          </section>
+        )}
 
         <section className={styles.section}>
           <div className={styles.sectionHead}>
             <span className="label">Ajustes de la carrera</span>
-            {!isHost && <span className="muted">Los elige el host</span>}
+            {!isHost ? (
+              <span className="muted">Los elige el host</span>
+            ) : (
+              racing && <span className="muted">Se cambian al terminar la carrera</span>
+            )}
           </div>
-          <RoomSettingsPanel settings={room.settings} isHost={isHost} />
+          <RoomSettingsPanel settings={room.settings} isHost={isHost && !racing} />
         </section>
       </div>
 
@@ -102,7 +119,11 @@ export default function Lobby({ room, myId, isHost }: Props) {
           <Garage value={{ car: me.car, color: me.color }} onChange={changeCar} takenColors={takenColors} compact />
         </section>
 
-        <StartPanel room={room} myId={myId} isHost={isHost} />
+        {racing ? (
+          <RaceInProgress room={room} isHost={isHost} />
+        ) : (
+          <StartPanel room={room} myId={myId} isHost={isHost} />
+        )}
 
         <section className={`${styles.section} ${styles.chatSection}`}>
           <span className="label">Chat</span>

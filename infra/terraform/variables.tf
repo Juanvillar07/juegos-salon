@@ -16,8 +16,13 @@ variable "project_name" {
 }
 
 variable "domain_name" {
-  description = "Dominio del sitio, p. ej. salondejuegos.com. El frontend queda en el dominio y en www; el backend en api."
+  description = <<-EOT
+    Dominio del sitio, p. ej. salondejuegos.com: el frontend queda en el dominio y en www; el backend en api.
+    Vacío: sin dominio. El sitio queda en la URL de CloudFront (https://xxxx.cloudfront.net) y la API
+    se sirve por la misma distribución (/socket.io/*).
+  EOT
   type        = string
+  default     = ""
 }
 
 variable "api_subdomain" {
@@ -28,6 +33,7 @@ variable "api_subdomain" {
 
 variable "create_hosted_zone" {
   description = <<-EOT
+    Solo con domain_name.
     false: el dominio está registrado en Route 53 y ya tiene su zona alojada (se busca).
     true: se crea la zona; después hay que poner sus servidores de nombres (output name_servers) en el registrador del dominio.
   EOT
@@ -53,15 +59,20 @@ variable "lightsail_bundle_id" {
   default     = "micro_3_0"
 }
 
-variable "ssh_public_key_path" {
-  description = "Clave pública SSH para entrar a la instancia (la usa scripts/deploy-backend.sh)."
+variable "ssh_public_key" {
+  description = "Contenido de la clave pública SSH de despliegue (ssh-ed25519 AAAA…). Su clave privada la usan scripts/deploy-backend.sh y GitHub Actions."
   type        = string
-  default     = "~/.ssh/id_ed25519.pub"
+
+  validation {
+    condition     = can(regex("^ssh-(ed25519|rsa) ", var.ssh_public_key))
+    error_message = "Pega el contenido de la clave pública, p. ej. el de ~/.ssh/salon_deploy.pub."
+  }
 }
 
 variable "ssh_allowed_cidrs" {
   description = "Redes que pueden entrar por SSH, p. ej. [\"203.0.113.10/32\"] (tu IP: curl https://checkip.amazonaws.com)."
   type        = list(string)
+  sensitive   = true
 
   validation {
     condition     = length(var.ssh_allowed_cidrs) > 0 && alltrue([for c in var.ssh_allowed_cidrs : can(cidrhost(c, 0))])
@@ -84,6 +95,7 @@ variable "budget_alert_email" {
   description = "Correo para la alerta de presupuesto mensual. Vacío = sin alerta."
   type        = string
   default     = ""
+  sensitive   = true
 }
 
 variable "monthly_budget_usd" {

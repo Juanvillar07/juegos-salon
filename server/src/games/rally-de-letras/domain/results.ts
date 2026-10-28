@@ -22,6 +22,7 @@ export function computeResults(room: Room, now: number): RaceResult[] {
       car: p.car,
       status: p.status,
       position: p.position,
+      retired: p.retired,
       wpm: playerWpm(room, p, now),
       accuracy: playerAccuracy(p),
       progress: p.progress,

@@ -8,6 +8,7 @@ import styles from './App.module.css';
 
 // Cada juego se carga solo cuando se entra en él (y con él, su conexión al servidor).
 const RallyDeLetras = lazy(() => import('../games/rally-de-letras/RallyApp'));
+const CarreraDeSilabas = lazy(() => import('../games/carrera-de-silabas/SilabasApp'));
 
 /** Los enlaces antiguos /sala/CODIGO siguen funcionando. */
 function LegacyRoomRedirect() {
@@ -51,6 +52,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<PortalHome />} />
             <Route path="/rally-de-letras/*" element={<RallyDeLetras />} />
+            <Route path="/carrera-de-silabas/*" element={<CarreraDeSilabas />} />
             <Route path="/sala/:code" element={<LegacyRoomRedirect />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

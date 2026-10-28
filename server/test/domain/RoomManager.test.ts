@@ -247,6 +247,27 @@ describe('RoomManager: inicio de carrera', () => {
     const res = manager.startRace('a');
     expect(res.ok && res.room.startAt).toBe(T0 + COUNTDOWN_MS);
   });
+
+  it('pasa al catálogo los textos recientes de la sala para no repetirlos (hasta 30)', () => {
+    const seen: number[][] = [];
+    let next = 0;
+    const manager = new RoomManager({
+      now: () => T0,
+      pickText: (recent) => {
+        seen.push([...recent]);
+        return { id: next++, text: 'hola mundo' };
+      },
+    });
+    roomWith(manager);
+    for (let i = 0; i < 32; i++) {
+      manager.startRace('a');
+      manager.cancelRace('a');
+    }
+    expect(seen[0]).toEqual([]);
+    expect(seen[2]).toEqual([0, 1]);
+    expect(seen[31]).toHaveLength(30);
+    expect(seen[31][0]).toBe(1);
+  });
 });
 
 describe('RoomManager: validación de progreso', () => {
@@ -328,7 +349,7 @@ describe('RoomManager: llegada y resultados', () => {
     const { manager } = racing('b', 'c');
     manager.updateProgress('a', LEN, 0);
     manager.updateProgress('b', LEN, 0);
-    expect(manager.leaveRoom('c').raceOver).toBe(true);
+    expect(manager.leaveRoom('c').race).toBe('over');
   });
 
   it('calcula WPM y precisión, y deja a los que no terminaron al final por avance', () => {
@@ -358,5 +379,95 @@ describe('RoomManager: llegada y resultados', () => {
     expect(room.phase).toBe('lobby');
     expect(room.players.has('c')).toBe(false);
     expect([...room.players.values()].every((p) => p.progress === 0 && p.position === null)).toBe(true);
+  });
+});
+
+describe('RoomManager: volver a la sala durante la carrera', () => {
+  it('quien vuelve sigue en la sala pero ya no corre', () => {
+    const { manager, room } = racing('b');
+    manager.updateProgress('b', 3, 0);
+    expect(manager.retireFromRace('b')).toMatchObject({ ok: true, race: 'continues' });
+    expect(manager.getRoomOfPlayer('b')).toBe(room);
+    expect(manager.toState(room).players.find((p) => p.id === 'b')).toMatchObject({ retired: true, progress: 3 });
+    expect(manager.updateProgress('b', 5, 0)).toMatchObject({ accepted: false, reason: 'retired' });
+    expect(manager.retireFromRace('b')).toMatchObject({ ok: false });
+  });
+
+  it('solo durante la carrera', () => {
+    const { manager } = setup();
+    roomWith(manager, 'b');
+    expect(manager.retireFromRace('b')).toMatchObject({ ok: false, error: 'No hay ninguna carrera en curso' });
+  });
+
+  it('si los que siguen corriendo ya llegaron, la carrera termina', () => {
+    const { manager, room } = racing('b', 'c');
+    manager.updateProgress('a', LEN, 0);
+    manager.updateProgress('b', LEN, 0);
+    expect(manager.retireFromRace('c')).toMatchObject({ ok: true, race: 'over' });
+    const results = manager.endRace(room.code)!;
+    expect(results.find((r) => r.playerId === 'c')).toMatchObject({ position: null, retired: true });
+  });
+
+  it('quien ya llegó conserva su puesto al volver a la sala', () => {
+    const { manager, room } = racing('b');
+    manager.updateProgress('a', LEN, 0);
+    expect(manager.retireFromRace('a')).toMatchObject({ ok: true, race: 'continues' });
+    expect(manager.retireFromRace('b')).toMatchObject({ ok: true, race: 'over' });
+    expect(manager.endRace(room.code)!.map((r) => [r.playerId, r.position])).toEqual([
+      ['a', 1],
+      ['b', null],
+    ]);
+  });
+
+  it('si nadie corre y nadie llegó, se cancela', () => {
+    const { manager, room } = racing('b');
+    manager.retireFromRace('a');
+    expect(manager.retireFromRace('b')).toMatchObject({ ok: true, race: 'cancelled' });
+    expect(manager.abortRace(room.code)).toBe(room);
+    expect(room.phase).toBe('lobby');
+    expect(room.results).toBeNull();
+  });
+
+  it('si el último que corría se va de la sala, también se cancela', () => {
+    const { manager } = racing('b');
+    manager.retireFromRace('a');
+    expect(manager.leaveRoom('b').race).toBe('cancelled');
+  });
+
+  it('quien volvió a la sala puede cambiar de auto; quien corre, no', () => {
+    const { manager } = racing('b');
+    expect(manager.customize('a', { car: 'f1' }).ok).toBe(false);
+    manager.retireFromRace('a');
+    expect(manager.customize('a', { car: 'f1' }).ok).toBe(true);
+  });
+});
+
+describe('RoomManager: cancelar la carrera', () => {
+  it('el host cancela: todos vuelven al lobby sin resultados y se puede correr otra', () => {
+    const { manager, room } = racing('b', 'c');
+    manager.updateProgress('b', LEN, 0);
+    manager.leaveRoom('c');
+    expect(manager.cancelRace('a')).toMatchObject({ ok: true });
+    expect(room.phase).toBe('lobby');
+    expect(room.results).toBeNull();
+    expect([...room.players.keys()]).toEqual(['a', 'b']);
+    const players = manager.toState(room).players;
+    expect(players.every((p) => p.progress === 0 && p.position === null && !p.retired)).toBe(true);
+    expect(manager.startRace('a').ok).toBe(true);
+  });
+
+  it('solo el host y solo durante la carrera', () => {
+    const { manager } = racing('b');
+    expect(manager.cancelRace('b')).toMatchObject({ ok: false, error: 'Solo el host puede cancelar la carrera' });
+    manager.cancelRace('a');
+    expect(manager.cancelRace('a')).toMatchObject({ ok: false, error: 'No hay ninguna carrera en curso' });
+  });
+
+  it('también durante la cuenta regresiva', () => {
+    const { manager } = setup();
+    const room = roomWith(manager, 'b');
+    manager.startRace('a');
+    expect(manager.cancelRace('a').ok).toBe(true);
+    expect(room.phase).toBe('lobby');
   });
 });

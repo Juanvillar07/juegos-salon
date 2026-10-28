@@ -39,9 +39,11 @@ export default function Track({ room, myId, myProgress, live = false, fit = fals
         const mine = p.id === myId;
         const progress = progressOf(p);
         const ratio = Math.min(1, progress / total);
-        const moving = live && p.status === 'connected' && p.position === null && progress > 0;
+        // Volvió a la sala sin llegar: su auto se queda parado donde lo dejó.
+        const retired = p.retired && p.position === null;
+        const moving = live && p.status === 'connected' && !retired && p.position === null && progress > 0;
         const rank = p.position ?? ranking.get(p.id)!;
-        const rowClass = [styles.row, mine && styles.mine, p.status !== 'connected' && styles.away]
+        const rowClass = [styles.row, mine && styles.mine, (p.status !== 'connected' || retired) && styles.away]
           .filter(Boolean)
           .join(' ');
 
@@ -53,6 +55,7 @@ export default function Track({ room, myId, myProgress, live = false, fit = fals
               <span className="nick">{p.nickname}</span>
               <span className={styles.sub}>
                 {mine ? 'tú' : p.position !== null ? 'en meta' : `${Math.round(ratio * 100)}%`}
+                {retired && <span className="tag">se retiró</span>}
                 <StatusTag status={p.status} />
               </span>
             </div>
@@ -61,7 +64,13 @@ export default function Track({ room, myId, myProgress, live = false, fit = fals
               <div className={styles.trail} />
               <div className={styles.finish} />
               <div className={styles.runner}>
-                <CarSprite model={p.car} color={p.color} width={CAR_WIDTH} moving={moving} faded={p.status === 'left'} />
+                <CarSprite
+                  model={p.car}
+                  color={p.color}
+                  width={CAR_WIDTH}
+                  moving={moving}
+                  faded={p.status === 'left' || retired}
+                />
               </div>
             </div>
 

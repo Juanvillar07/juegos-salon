@@ -25,6 +25,10 @@ export interface ClientToServerEvents {
   'chat:send': (payload: { text: string }, ack: (res: Ack) => void) => void;
   'race:start': () => void;
   'race:progress': (payload: { correctChars: number; errors: number }) => void;
+  /** Dejar de correr y volver al lobby de la sala, sin salir de ella. */
+  'race:retire': () => void;
+  /** Cancelar la carrera en curso y volver todos al lobby (solo el host). */
+  'race:cancel': () => void;
   'race:again': () => void;
 }
 

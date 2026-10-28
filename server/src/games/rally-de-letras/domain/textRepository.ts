@@ -12,10 +12,15 @@ export function loadTexts(path = DEFAULT_PATH): RaceText[] {
   return raw.map((text, id) => ({ id, text: text.trim() }));
 }
 
-/** Elige un texto al azar distinto del último usado en la sala. */
-export function createTextPicker(texts: RaceText[]) {
-  return (excludeId: number | null): RaceText => {
-    const pool = texts.length > 1 ? texts.filter((t) => t.id !== excludeId) : texts;
-    return pool[Math.floor(Math.random() * pool.length)];
+/**
+ * Elige un texto al azar que la sala no haya corrido hace poco (`recent`, del más antiguo al
+ * más nuevo). Si ya los usó todos, solo evita repetir el último.
+ */
+export function createTextPicker(texts: RaceText[], random: () => number = Math.random) {
+  return (recent: readonly number[]): RaceText => {
+    const used = new Set(recent);
+    let pool = texts.filter((t) => !used.has(t.id));
+    if (pool.length === 0) pool = texts.length > 1 ? texts.filter((t) => t.id !== recent.at(-1)) : texts;
+    return pool[Math.floor(random() * pool.length)];
   };
 }

@@ -1,0 +1,205 @@
+# Despliegue continuo: cada push a main pasa por CI y luego despliega solo lo que cambió.
+#   infra/terraform/**          → terraform plan + apply
+#   server/, shared/, Dockerfile… → backend (imagen Docker a Lightsail)
+#   client/, shared/…           → frontend (S3 + CloudFront)
+# También se puede lanzar a mano (Actions → Deploy → Run workflow) eligiendo qué desplegar.
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      infra:
+        description: Aplicar Terraform
+        type: boolean
+        default: false
+      backend:
+        description: Desplegar el backend
+        type: boolean
+        default: true
+      frontend:
+        description: Desplegar el frontend
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+# Un despliegue a la vez, sin cancelar el que está en curso (dejaría el firewall o el estado a medias).
+concurrency:
+  group: production
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  changes:
+    name: Qué cambió
+    runs-on: ubuntu-latest
+    outputs:
+      infra: ${{ steps.diff.outputs.infra }}
+      backend: ${{ steps.diff.outputs.backend }}
+      frontend: ${{ steps.diff.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: diff
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+          IN_INFRA: ${{ inputs.infra }}
+          IN_BACKEND: ${{ inputs.backend }}
+          IN_FRONTEND: ${{ inputs.frontend }}
+        run: |
+          if [ "$EVENT" = workflow_dispatch ]; then
+            { echo "infra=$IN_INFRA"; echo "backend=$IN_BACKEND"; echo "frontend=$IN_FRONTEND"; } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Primer push de la rama o historial reescrito: se despliega todo.
+          if ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            { echo infra=true; echo backend=true; echo frontend=true; } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          files="$(git diff --name-only "$BEFORE" "$GITHUB_SHA")"
+          echo "$files"
+          has() { grep -qE "$1" <<<"$files" && echo true || echo false; }
+          {
+            echo "infra=$(has '^infra/terraform/')"
+            echo "backend=$(has '^(server/|shared/|deploy/|Dockerfile|\.dockerignore|package(-lock)?\.json|tsconfig\.base\.json|scripts/deploy-backend\.sh)')"
+            echo "frontend=$(has '^(client/|shared/|package(-lock)?\.json|tsconfig\.base\.json|scripts/deploy-frontend\.sh)')"
+          } >> "$GITHUB_OUTPUT"
+
+  plan:
+    name: Terraform plan
+    needs: [ci, changes]
+    if: needs.changes.outputs.infra == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_PLAN_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - uses: ./.github/actions/terraform-init
+        with:
+          state-bucket: ${{ vars.TF_STATE_BUCKET }}
+          state-key: ${{ vars.TF_STATE_KEY }}
+          region: ${{ env.AWS_REGION }}
+          tfvars: ${{ secrets.TERRAFORM_TFVARS }}
+      - name: terraform plan
+        working-directory: infra/terraform
+        run: |
+          terraform plan -input=false -lock=false -no-color -out=tfplan
+          {
+            echo '### Terraform plan'
+            echo '```'
+            terraform show -no-color tfplan | head -c 60000
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  infra:
+    name: Terraform apply
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Si el environment exige revisores, aquí se pide la aprobación (el plan está en el job anterior).
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - uses: ./.github/actions/terraform-init
+        with:
+          state-bucket: ${{ vars.TF_STATE_BUCKET }}
+          state-key: ${{ vars.TF_STATE_KEY }}
+          region: ${{ env.AWS_REGION }}
+          tfvars: ${{ secrets.TERRAFORM_TFVARS }}
+      - run: terraform apply -input=false -auto-approve -no-color
+        working-directory: infra/terraform
+
+  backend:
+    name: Backend
+    needs: [ci, changes, plan, infra]
+    # Tras CI, y tras Terraform si hubo que aplicarlo (si no, esos jobs quedan omitidos).
+    if: >-
+      always() && needs.changes.outputs.backend == 'true' && needs.ci.result == 'success'
+      && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - uses: ./.github/actions/terraform-init
+        with:
+          state-bucket: ${{ vars.TF_STATE_BUCKET }}
+          state-key: ${{ vars.TF_STATE_KEY }}
+          region: ${{ env.AWS_REGION }}
+      - name: Clave SSH de despliegue
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/salon_deploy
+          chmod 600 ~/.ssh/salon_deploy
+      - id: ssh
+        name: Abrir SSH a este runner
+        run: bash scripts/lightsail-ssh.sh open
+      - name: Desplegar
+        run: bash scripts/deploy-backend.sh
+        env:
+          BUILD_LOCALLY: '1'
+      - name: Cerrar SSH
+        if: always() && steps.ssh.outcome == 'success'
+        run: bash scripts/lightsail-ssh.sh close
+
+  frontend:
+    name: Frontend
+    needs: [ci, changes, plan, infra]
+    if: >-
+      always() && needs.changes.outputs.frontend == 'true' && needs.ci.result == 'success'
+      && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - uses: ./.github/actions/terraform-init
+        with:
+          state-bucket: ${{ vars.TF_STATE_BUCKET }}
+          state-key: ${{ vars.TF_STATE_KEY }}
+          region: ${{ env.AWS_REGION }}
+      - run: bash scripts/deploy-frontend.sh

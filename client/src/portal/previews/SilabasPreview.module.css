@@ -1,0 +1,128 @@
+.preview {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: 1fr auto;
+  column-gap: 20px;
+  width: 100%;
+  height: 100%;
+  padding: 18px 20px 14px;
+}
+
+.syllable {
+  align-self: center;
+  font-size: 2.6rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+
+.words {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.words li {
+  display: flex;
+  opacity: 0;
+  animation: appear 3.6s ease-out infinite;
+}
+
+.words mark {
+  background: none;
+  color: var(--text);
+  font-weight: 700;
+}
+
+.words span {
+  margin-left: 8px;
+  color: var(--good);
+  font-weight: 600;
+}
+
+@keyframes appear {
+  0% {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  15%,
+  85% {
+    opacity: 1;
+    transform: none;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.lanes {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 10px;
+}
+
+.lane {
+  position: relative;
+  height: 32px;
+  background: var(--road);
+  overflow: hidden;
+}
+
+.car {
+  position: absolute;
+  bottom: 4px;
+  animation: drive linear infinite;
+}
+
+@keyframes drive {
+  from {
+    left: -80px;
+  }
+  to {
+    left: 100%;
+  }
+}
+
+/* En pantallas bajas la tarjeta encoge su vista previa (el portal cabe sin scroll): todo más compacto. */
+@media (max-height: 900px) {
+  .preview {
+    padding: 8px 20px 8px;
+  }
+  .syllable {
+    font-size: 2rem;
+  }
+  .words {
+    gap: 0;
+    font-size: 0.78rem;
+  }
+  .lanes {
+    gap: 2px;
+    margin-top: 4px;
+  }
+  .lane {
+    height: 26px;
+  }
+  .car {
+    bottom: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .car,
+  .words li {
+    animation: none;
+    opacity: 1;
+  }
+  .car {
+    left: 30%;
+  }
+}

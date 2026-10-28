@@ -9,6 +9,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./carrera-de-silabas": {
+      "types": "./dist/games/carrera-de-silabas/index.d.ts",
+      "default": "./dist/games/carrera-de-silabas/index.js"
     }
   },
   "scripts": {

@@ -92,9 +92,9 @@ export default function Results({ room, myId, isHost }: Props) {
                 <td className={`${styles.pos} num`}>{r.position !== null ? `P${r.position}` : '–'}</td>
                 <td>
                   <span className={styles.player}>
-                    <CarSprite model={r.car} color={r.color} width={64} faded={r.status === 'left'} />
+                    <CarSprite model={r.car} color={r.color} width={64} faded={r.status === 'left' || r.retired} />
                     <span className="nick">{r.nickname}</span>
-                    {r.position === null && <span className="tag">sin terminar</span>}
+                    {r.position === null && <span className="tag">{r.retired ? 'se retiró' : 'sin terminar'}</span>}
                     <StatusTag status={r.status} />
                   </span>
                 </td>

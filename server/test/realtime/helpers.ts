@@ -22,7 +22,7 @@ export function useTestServer(options: { graceMs?: number; autoStartMs?: number 
 
   beforeEach(async () => {
     const manager = new RoomManager({ pickText: () => ({ id: 0, text: 'hola mundo' }), autoStartMs: options.autoStartMs });
-    server = createAppServer({ corsOrigins: ['*'], manager, reconnectGraceMs: options.graceMs ?? 300 });
+    server = createAppServer({ corsOrigins: ['*'], rally: manager, reconnectGraceMs: options.graceMs ?? 300 });
     await new Promise<void>((resolve) => server.httpServer.listen(0, resolve));
     url = `http://localhost:${(server.httpServer.address() as AddressInfo).port}`;
   });

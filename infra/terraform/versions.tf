@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">= 1.6"
+  required_version = ">= 1.10"
 
   required_providers {
     aws = {
@@ -8,7 +8,9 @@ terraform {
     }
   }
 
-  # Estado local por defecto. Para trabajar en equipo, muévelo a S3 (ver README de infra).
+  # Estado en S3 (bucket creado por infra/bootstrap), compartido entre tu equipo y GitHub Actions.
+  # La configuración va aparte: terraform init -backend-config=backend.hcl (ver backend.hcl.example).
+  backend "s3" {}
 }
 
 provider "aws" {

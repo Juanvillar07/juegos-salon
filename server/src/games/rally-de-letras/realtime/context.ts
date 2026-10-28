@@ -1,9 +1,9 @@
 import type { Namespace, Socket } from 'socket.io';
 import type { ClientToServerEvents, RoomSnapshot, ServerToClientEvents, SocketData } from '@typeracer/shared';
 import type { RoomManager } from '../domain/RoomManager.js';
-import type { AutoStartDecision, LeaveResult, Room } from '../domain/types.js';
-import { KeyedTimers } from './KeyedTimers.js';
-import { SessionRegistry } from './SessionRegistry.js';
+import type { AutoStartDecision, LeaveResult, RaceOutcome, Room } from '../domain/types.js';
+import { KeyedTimers } from '../../../common/KeyedTimers.js';
+import { SessionRegistry } from '../../../common/SessionRegistry.js';
 
 type InterServerEvents = Record<string, never>;
 /** El juego vive en su propio namespace de Socket.IO (p. ej. /rally-de-letras). */
@@ -95,6 +95,23 @@ export class RealtimeContext {
     this.broadcastState(room);
   }
 
+  /** Vuelve todos al lobby sin resultados (cancelada por el host o porque ya nadie corre). */
+  returnToLobby(room: Room, notice: string): void {
+    this.raceTimers.clear(room.code);
+    // El aviso va antes que el estado: quien sigue en la pista lo ve como notificación.
+    this.announce(room.code, notice);
+    this.broadcastState(room);
+  }
+
+  /** Tras una salida o un retiro: la carrera sigue, termina con resultados o se cancela. */
+  settleRace(room: Room, race: RaceOutcome): void {
+    if (race === 'over') return this.finishRace(room.code);
+    if (race === 'cancelled' && this.manager.abortRace(room.code)) {
+      return this.returnToLobby(room, 'Ya nadie sigue en carrera: se canceló');
+    }
+    this.broadcastState(room);
+  }
+
   /** Programa el fin de la carrera según el límite de tiempo elegido para la sala. */
   scheduleRaceEnd(room: Room): void {
     const { code, raceId } = room;
@@ -120,8 +137,7 @@ export class RealtimeContext {
       return result;
     }
     this.announce(room.code, room.phase === 'racing' ? `${nickname} abandonó la carrera` : `${nickname} salió de la sala`);
-    if (result.raceOver) this.finishRace(room.code);
-    else this.broadcastState(room);
+    this.settleRace(room, result.race);
     return result;
   }
 

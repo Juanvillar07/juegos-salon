@@ -1,16 +1,18 @@
 import { Link } from 'react-router-dom';
 import { GAMES, type GameEntry } from './games';
 import RallyPreview from './previews/RallyPreview';
+import SilabasPreview from './previews/SilabasPreview';
 import styles from './PortalHome.module.css';
 
 /** Vista previa animada de cada juego en su tarjeta. */
 const PREVIEWS: Record<string, () => JSX.Element> = {
   'rally-de-letras': RallyPreview,
+  'carrera-de-silabas': SilabasPreview,
 };
 
 export default function PortalHome() {
   return (
-    <div className={styles.portal}>
+    <div className={styles.portal} data-fit>
       <section className={styles.hero}>
         <span className="label">Salón de Juegos</span>
         <h1 className={styles.title}>

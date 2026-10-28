@@ -1,7 +1,9 @@
-#!/bin/bash
+#!/bin/sh
 # Primer arranque de la instancia de Lightsail (Ubuntu): deja la máquina lista para
 # scripts/deploy-backend.sh. Se ejecuta una sola vez, como root.
-set -euxo pipefail
+# Lightsail antepone su propio script y lo ejecuta todo con sh (dash), no con la línea #!:
+# solo sintaxis POSIX (sin pipefail ni bashismos).
+set -eux
 export DEBIAN_FRONTEND=noninteractive
 
 # 1 GB de swap: construir la imagen de Node con 1 GB de RAM puede quedarse corto.

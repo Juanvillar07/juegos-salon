@@ -1,0 +1,48 @@
+# terraform plan en los pull requests que tocan la infraestructura: el resultado queda en el
+# resumen del job. Solo lectura (rol plan); el apply lo hace deploy.yml al llegar a main.
+name: Terraform plan
+
+on:
+  pull_request:
+    paths:
+      - infra/terraform/**
+      - .github/actions/terraform-init/**
+
+permissions:
+  contents: read
+  id-token: write # OIDC para asumir el rol de AWS
+
+concurrency:
+  group: terraform-plan-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  plan:
+    name: Plan
+    # Los pull requests desde forks no reciben secretos ni OIDC; tampoco antes de configurar AWS.
+    if: github.event.pull_request.head.repo.full_name == github.repository && vars.AWS_PLAN_ROLE_ARN != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_PLAN_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - uses: ./.github/actions/terraform-init
+        with:
+          state-bucket: ${{ vars.TF_STATE_BUCKET }}
+          state-key: ${{ vars.TF_STATE_KEY }}
+          region: ${{ vars.AWS_REGION }}
+          tfvars: ${{ secrets.TERRAFORM_TFVARS }}
+      - name: terraform plan
+        working-directory: infra/terraform
+        # -lock=false: el rol de solo lectura no puede escribir el bloqueo, y el plan no cambia nada.
+        run: |
+          terraform plan -input=false -lock=false -no-color -out=tfplan
+          {
+            echo '### Terraform plan'
+            echo '```'
+            terraform show -no-color tfplan | head -c 60000
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
