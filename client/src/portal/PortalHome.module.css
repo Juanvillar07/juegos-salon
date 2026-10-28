@@ -1,0 +1,144 @@
+.portal {
+  display: flex;
+  flex-direction: column;
+  gap: 48px;
+  padding-top: 24px;
+}
+
+.hero {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  max-width: 720px;
+}
+
+.title {
+  font-size: clamp(3rem, 7vw, 5.6rem);
+  font-weight: 600;
+  letter-spacing: -0.055em;
+  line-height: 0.95;
+}
+
+.title span {
+  color: var(--subtle);
+}
+
+.lead {
+  font-size: 1.1rem;
+  line-height: 1.55;
+  color: var(--muted);
+  max-width: 560px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 20px;
+}
+
+/* Tarjeta de juego: toda la tarjeta es el enlace */
+.card {
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: inherit;
+  text-decoration: none;
+  overflow: hidden;
+  transition:
+    transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 0.2s,
+    border-color 0.2s;
+}
+
+a.card:hover {
+  transform: translateY(-3px);
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow);
+}
+
+a.card:hover .play {
+  opacity: 0.88;
+}
+
+.preview {
+  height: 180px;
+  background: var(--surface-2);
+  display: flex;
+  align-items: center;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 22px 24px 24px;
+  flex: 1;
+}
+
+.tagline {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.name {
+  font-size: 1.6rem;
+  letter-spacing: -0.03em;
+}
+
+.description {
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: auto;
+  padding-top: 12px;
+  font-size: 0.85rem;
+}
+
+/* Tarjeta "próximamente" */
+.soon {
+  border-style: dashed;
+  background: transparent;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 10px;
+  padding: 40px 24px;
+  min-height: 300px;
+}
+
+.soonMark {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 1px dashed var(--border-strong);
+  display: grid;
+  place-items: center;
+  font-size: 1.4rem;
+  color: var(--subtle);
+}
+
+.soon .name {
+  font-size: 1.2rem;
+}
+
+@media (max-width: 420px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}

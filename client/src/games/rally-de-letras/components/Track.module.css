@@ -1,0 +1,164 @@
+.track {
+  --lane-height: 64px;
+  --lane-pad: 14px;
+  --finish: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 36px 150px minmax(0, 1fr) 72px;
+  align-items: center;
+  gap: 16px;
+}
+
+.away {
+  opacity: 0.55;
+}
+
+.rank {
+  font-size: 0.9rem;
+  font-weight: 700;
+  font-style: italic;
+  color: var(--subtle);
+}
+
+.mine .rank {
+  color: var(--text);
+}
+
+.who {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sub {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+/* ------------------------------------------------------------------ carril */
+
+.lane {
+  position: relative;
+  height: var(--lane-height);
+  border-radius: 12px;
+  background: var(--road);
+  overflow: hidden;
+}
+
+.mine .lane {
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+
+/* Estela: recorrido hecho, en el color del auto y muy suave */
+.trail {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  /* llega hasta media carrocería; en 0 % no se ve nada */
+  width: calc(
+    (100% - var(--car-width) - var(--lane-pad) * 2 - var(--finish)) * var(--p) +
+      clamp(0px, var(--p) * 4000px, var(--lane-pad) + var(--car-width) * 0.5)
+  );
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--car) 16%, transparent));
+  transition: width 0.35s linear;
+}
+
+/* Meta: columna fina de cuadros en grises */
+.finish {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: var(--finish);
+  background: conic-gradient(var(--text) 25%, transparent 0 50%, var(--text) 0 75%, transparent 0) 0 0 / 10px 10px;
+  opacity: 0.18;
+}
+
+/* El runner mide el carril menos el auto: translateX(100%) deja el auto en la meta. */
+.runner {
+  position: absolute;
+  left: var(--lane-pad);
+  bottom: 8px;
+  width: calc(100% - var(--car-width) - var(--lane-pad) * 2 - var(--finish));
+  transform: translateX(calc(var(--p) * 100%));
+  transition: transform 0.35s linear;
+}
+
+.wpm {
+  justify-self: end;
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+.wpm small {
+  font-size: 0.7rem;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+/* ---------------------------------------------------------- modo ajustar */
+
+/* Los carriles se reparten el alto disponible (máximo 64 px) y el auto se escala con la
+   altura de su carril gracias a las container queries (cqh = % del alto del carril). */
+.fit {
+  height: 100%;
+  gap: 4px;
+}
+
+.fit .row {
+  flex: 1 1 0;
+  min-height: 0;
+  max-height: var(--lane-height);
+}
+
+.fit .lane {
+  height: 100%;
+  container-type: size;
+  --car-width: min(116px, 175cqh);
+}
+
+.fit .runner {
+  bottom: 12cqh;
+}
+
+.fit .runner svg {
+  width: var(--car-width);
+  height: auto;
+}
+
+@media (max-width: 760px) {
+  .row {
+    grid-template-columns: 28px minmax(0, 1fr) 60px;
+    row-gap: 6px;
+  }
+  .lane {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+  .who {
+    grid-column: 2;
+  }
+  .fit {
+    height: auto;
+  }
+  .fit .row {
+    flex: none;
+    max-height: none;
+  }
+  .fit .lane {
+    height: 48px;
+  }
+}

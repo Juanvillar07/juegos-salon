@@ -1,0 +1,46 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+
+.number {
+  font-size: 7rem;
+  font-weight: 300;
+  letter-spacing: -0.05em;
+  line-height: 1;
+  animation: tick 0.9s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes tick {
+  from {
+    opacity: 0;
+    transform: scale(1.25);
+  }
+}
+
+.lights {
+  display: flex;
+  gap: 10px;
+}
+
+.light {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--border-strong);
+  transition: background 0.15s;
+}
+
+.on {
+  background: var(--bad);
+}
+
+.go .on {
+  background: var(--good);
+}
+
+.go .number {
+  color: var(--good);
+}

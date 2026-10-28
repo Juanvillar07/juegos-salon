@@ -1,0 +1,108 @@
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 520px);
+  gap: 72px;
+  align-items: start;
+  padding-top: 32px;
+}
+
+.hero {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.title {
+  font-size: clamp(3.2rem, 8vw, 6.4rem);
+  font-weight: 600;
+  letter-spacing: -0.055em;
+  line-height: 0.92;
+}
+
+.title span {
+  color: var(--subtle);
+}
+
+.lead {
+  max-width: 440px;
+  font-size: 1.1rem;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+/* Una línea fina por la que pasea tu auto actual */
+.cruise {
+  position: relative;
+  height: 52px;
+  border-bottom: 1px solid var(--border-strong);
+  overflow: hidden;
+}
+
+.cruiseCar {
+  position: absolute;
+  bottom: -1px;
+  animation: cruise 9s linear infinite;
+}
+
+@keyframes cruise {
+  from {
+    left: -120px;
+  }
+  to {
+    left: 100%;
+  }
+}
+
+.form {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.form :global(.field) {
+  flex: 1;
+  min-width: 220px;
+}
+
+.nameInput {
+  font-size: 1.1rem;
+  padding: 14px 16px;
+}
+
+.join {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 0.9rem;
+}
+
+.codeInput {
+  width: 140px;
+  text-transform: uppercase;
+  letter-spacing: 0.3em;
+  font-weight: 600;
+  text-align: center;
+}
+
+.garage {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.garageHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 1000px) {
+  .layout {
+    grid-template-columns: 1fr;
+    gap: 48px;
+    padding-top: 8px;
+  }
+}

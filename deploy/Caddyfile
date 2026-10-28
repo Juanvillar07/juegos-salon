@@ -1,0 +1,6 @@
+# Caddy obtiene y renueva solo el certificado de {$API_DOMAIN} y reenvía todo a Node,
+# incluidas las conexiones WebSocket de Socket.IO.
+{$API_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy app:3001
+}

@@ -1,0 +1,111 @@
+.car {
+  display: block;
+  overflow: visible;
+}
+
+.faded {
+  filter: grayscale(1);
+  opacity: 0.45;
+}
+
+.shadow {
+  fill: rgba(0, 0, 0, 0.18);
+}
+
+:global([data-theme='dark']) .shadow {
+  fill: rgba(0, 0, 0, 0.5);
+}
+
+.glass {
+  fill: #23272e;
+  opacity: 0.92;
+}
+
+.carbon {
+  fill: #1c1d21;
+}
+
+.helmet {
+  fill: #f2f2f0;
+  stroke: #1c1d21;
+  stroke-width: 0.8;
+}
+
+.headlight {
+  fill: #f5f3ea;
+}
+
+.taillight {
+  fill: #c2453a;
+}
+
+.tire {
+  fill: #141518;
+}
+
+.rim {
+  fill: #3a3d44;
+}
+
+.spokes path {
+  fill: #b9bcc3;
+}
+
+.hub {
+  fill: #1c1d21;
+}
+
+.spokes {
+  transform-box: view-box;
+  transform-origin: 0 0;
+}
+
+.moving .spokes {
+  animation: spin 0.32s linear infinite;
+}
+
+.trail line {
+  stroke: var(--subtle);
+  stroke-width: 1.2;
+  stroke-linecap: round;
+  animation: trail 0.5s linear infinite;
+}
+
+.trail line:nth-child(2) {
+  animation-delay: 0.25s;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes trail {
+  from {
+    opacity: 0.8;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+}
+
+.idle {
+  animation: idle 0.18s linear infinite alternate;
+}
+
+@keyframes idle {
+  to {
+    transform: translateY(0.6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .idle,
+  .moving .spokes,
+  .trail line {
+    animation: none;
+  }
+}

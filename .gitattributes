@@ -1,0 +1,5 @@
+# Archivos que se ejecutan o leen en Linux (instancia de Lightsail, contenedores): siempre LF.
+*.sh text eol=lf
+*.tftpl text eol=lf
+Dockerfile text eol=lf
+deploy/* text eol=lf

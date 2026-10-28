@@ -1,0 +1,41 @@
+# Backend en la instancia de Lightsail: Node detrás de Caddy (HTTPS automático con Let's Encrypt).
+# Las variables (API_DOMAIN, CLIENT_ORIGIN) vienen de /opt/salon/.env, que escribe Terraform al crear la instancia.
+#   docker compose --env-file /opt/salon/.env up -d --build
+
+name: salon
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      PORT: 3001
+      CLIENT_ORIGIN: ${CLIENT_ORIGIN:?Falta CLIENT_ORIGIN}
+    expose:
+      - '3001'
+    # Las salas viven en memoria: una sola réplica.
+    deploy:
+      replicas: 1
+
+  caddy:
+    image: caddy:2.8.4-alpine
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp'
+    environment:
+      API_DOMAIN: ${API_DOMAIN:?Falta API_DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  # Certificados TLS: se conservan entre reinicios y despliegues.
+  caddy_data:
+  caddy_config:

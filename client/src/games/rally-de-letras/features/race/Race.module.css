@@ -1,0 +1,313 @@
+/* La carrera ocupa justo el alto de la ventana (menos la cabecera): HUD y texto arriba
+   con su tamaño natural y la pista se reparte el espacio restante, sin scroll. */
+.race {
+  --header: 76px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  height: calc(100dvh - var(--header) - 44px);
+  min-height: 540px;
+}
+
+.leave {
+  margin-left: 8px;
+}
+
+.leave kbd {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  padding: 1px 6px;
+  border-radius: 5px;
+  border: 1px solid var(--border-strong);
+  color: var(--muted);
+}
+
+.confirm {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9rem;
+  animation: rise 0.2s ease-out;
+}
+
+.danger {
+  background: var(--bad);
+  border-color: var(--bad);
+  color: #fff;
+}
+
+.danger:hover:not(:disabled) {
+  background: var(--bad) !important;
+  opacity: 0.88;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+/* ------------------------------------------------------------------ HUD */
+
+.hud {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  padding: 10px 20px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+/* Posición al estilo de la televisión de carreras: P1, P2… */
+.position {
+  display: flex;
+  flex-direction: column;
+  line-height: 1;
+}
+
+.pos {
+  font-size: 2.8rem;
+  font-weight: 700;
+  letter-spacing: -0.05em;
+  font-style: italic;
+}
+
+.posOf {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.stats {
+  display: flex;
+  gap: 36px;
+  margin-left: auto;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.statLabel {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.statValue {
+  font-size: 1.4rem;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.hurry .statValue {
+  color: var(--bad);
+  animation: blinkSoft 1s ease-in-out infinite;
+}
+
+@keyframes blinkSoft {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+/* Racha: aparece con un pequeño golpe cada vez que sube */
+.streak {
+  position: absolute;
+  top: -14px;
+  right: 24px;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: var(--text);
+  color: var(--bg);
+  font-size: 0.75rem;
+  animation: bump 0.35s cubic-bezier(0.3, 0.7, 0.3, 1.6);
+}
+
+.streak .num {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+@keyframes bump {
+  from {
+    transform: scale(1.35);
+  }
+}
+
+/* --------------------------------------------------------------- texto */
+
+.typing {
+  position: relative;
+  flex-shrink: 0;
+  max-width: 1040px;
+}
+
+.trackArea {
+  flex: 1;
+  min-height: 0;
+}
+
+.progressBar {
+  height: 2px;
+  background: var(--border);
+  margin-bottom: 14px;
+  overflow: hidden;
+}
+
+.progressBar div {
+  height: 100%;
+  background: var(--text);
+  transition: width 0.2s;
+}
+
+/* Se ven 3 líneas; el texto se desplaza solo para que la línea actual siempre esté a la vista. */
+.text {
+  position: relative;
+  font-size: clamp(1.2rem, 1.8vw, 1.55rem);
+  line-height: 1.6;
+  letter-spacing: -0.005em;
+  max-height: calc(3lh);
+  overflow: hidden;
+  scroll-behavior: smooth;
+  margin: 0 0 12px;
+  user-select: none;
+  color: var(--subtle);
+}
+
+.done {
+  color: var(--text);
+}
+
+.wrong {
+  color: var(--bad);
+  background: var(--bad-bg);
+  border-radius: 3px;
+}
+
+/* Cursor: barra fina que parpadea antes de la letra actual */
+.current {
+  position: relative;
+  color: var(--muted);
+}
+
+.current::before {
+  content: '';
+  position: absolute;
+  left: -1px;
+  top: 12%;
+  bottom: 12%;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--caret);
+  animation: blink 1s steps(1) infinite;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+.input {
+  width: 100%;
+  max-width: 520px;
+  font-size: 1.2rem;
+  padding: 8px 2px;
+  border: none;
+  border-bottom: 1px solid var(--border-strong);
+  border-radius: 0;
+  background: transparent;
+}
+
+.input:focus {
+  border-bottom-color: var(--text);
+}
+
+.hasError,
+.hasError:focus {
+  color: var(--bad);
+  border-bottom-color: var(--bad);
+}
+
+.overlay {
+  position: absolute;
+  inset: -16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(4px);
+  z-index: 2;
+}
+
+.fadeOut {
+  pointer-events: none;
+  animation: fade 0.9s forwards;
+}
+
+@keyframes fade {
+  50% {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.finish {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  animation: rise 0.4s ease-out;
+}
+
+/* Bandera a cuadros mínima */
+.flag {
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  flex-shrink: 0;
+  background: conic-gradient(var(--text) 25%, var(--surface-2) 0 50%, var(--text) 0 75%, var(--surface-2) 0) 0 0 / 14px 14px;
+}
+
+.finishPos {
+  font-size: 2.6rem;
+  font-weight: 700;
+  font-style: italic;
+  letter-spacing: -0.05em;
+  line-height: 1;
+}
+
+.finish p {
+  margin-top: 4px;
+}
+
+@media (max-width: 760px) {
+  .race {
+    height: auto;
+    min-height: 0;
+  }
+  .hud {
+    gap: 20px;
+    padding: 16px;
+  }
+  .stats {
+    margin-left: 0;
+    gap: 22px;
+  }
+  .pos {
+    font-size: 2.8rem;
+  }
+}

@@ -1,0 +1,8 @@
+**/node_modules
+**/dist
+client
+!client/package.json
+infra
+.claude
+.env
+*.log

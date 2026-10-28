@@ -1,0 +1,75 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.ready {
+  flex: 1;
+}
+
+/* Marcado como listo: verde suave, para distinguirlo del botón principal */
+.isReady {
+  background: color-mix(in srgb, var(--good) 14%, transparent);
+  border-color: var(--good);
+  color: var(--good);
+}
+
+.isReady:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--good) 20%, transparent) !important;
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  min-height: 20px;
+}
+
+.dots {
+  display: flex;
+  gap: 4px;
+}
+
+.dots i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--border-strong);
+  transition: background 0.2s;
+}
+
+.dots i.on {
+  background: var(--good);
+}
+
+.countdown {
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* Barra que se vacía hasta la salida automática */
+.wait {
+  height: 2px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.wait div {
+  height: 100%;
+  background: var(--text);
+  transform-origin: left;
+  transition: transform 0.25s linear;
+}
+
+.leave {
+  padding-top: 6px !important;
+  padding-bottom: 6px !important;
+}

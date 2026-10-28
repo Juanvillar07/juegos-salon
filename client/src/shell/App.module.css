@@ -1,0 +1,118 @@
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.header,
+.main {
+  width: 100%;
+  max-width: 1240px;
+  margin: 0 auto;
+  padding-left: 40px;
+  padding-right: 40px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 76px;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  font-size: 1.05rem;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  text-decoration: none;
+}
+
+/* Marca: dos trazos, como dos carriles con distinto avance */
+.mark {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 22px;
+}
+
+.mark i {
+  display: block;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--text);
+}
+
+.mark i:first-child {
+  width: 100%;
+}
+
+.mark i:last-child {
+  width: 60%;
+  opacity: 0.4;
+}
+
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.slot {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+/* Migas: Salón de Juegos / Juego actual */
+.crumbs {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.sep {
+  color: var(--subtle);
+}
+
+.gameName {
+  font-weight: 500;
+  color: var(--muted);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.gameName:hover {
+  color: var(--text);
+}
+
+.main {
+  flex: 1;
+  padding-top: 24px;
+  padding-bottom: 64px;
+}
+
+/* Lobby y carrera se ajustan al alto de la ventana: sin margen inferior que obligue a hacer scroll */
+.main:has([data-fit]) {
+  padding-bottom: 20px;
+}
+
+@media (max-width: 640px) {
+  .header,
+  .main {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .slot {
+    display: none;
+  }
+  .logo {
+    font-size: 0.95rem;
+  }
+}

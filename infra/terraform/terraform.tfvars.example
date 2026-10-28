@@ -1,0 +1,17 @@
+# Copia este archivo como terraform.tfvars y ajústalo (terraform.tfvars no se versiona).
+
+domain_name = "salondejuegos.com"
+
+# Tu IP pública con /32 (curl https://checkip.amazonaws.com). Si cambia, actualízala y haz terraform apply.
+ssh_allowed_cidrs = ["203.0.113.10/32"]
+
+# false si registraste el dominio en Route 53 (ya tiene zona); true si lo registraste en otro lado.
+create_hosted_zone = false
+
+# Opcionales
+# aws_region             = "us-east-1"
+# ssh_public_key_path    = "~/.ssh/id_ed25519.pub"
+# lightsail_bundle_id    = "micro_3_0"
+# cloudfront_price_class = "PriceClass_All"
+# budget_alert_email     = "tu-correo@ejemplo.com"
+# monthly_budget_usd     = 15

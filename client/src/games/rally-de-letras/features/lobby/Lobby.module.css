@@ -1,0 +1,156 @@
+/* El lobby ocupa justo el alto de la ventana. Si una pantalla es muy baja, cada columna
+   se desplaza por dentro; la página nunca. */
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 400px;
+  gap: 56px;
+  height: calc(100dvh - 76px - 44px);
+  min-height: 520px;
+}
+
+.main,
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+}
+
+.code {
+  font-size: clamp(2.6rem, 4.5vw, 3.8rem);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  margin-top: 6px;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.sectionHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 0.85rem;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.players {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.players li {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.players li:last-child {
+  border-bottom: none;
+}
+
+.slot {
+  width: 28px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  font-style: italic;
+  color: var(--subtle);
+}
+
+.mine .slot {
+  color: var(--text);
+}
+
+/* Cada auto detrás de su línea de salida */
+.gridCar {
+  padding-right: 10px;
+  border-right: 2px dashed var(--border-strong);
+}
+
+.playerInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.model {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.tags {
+  display: flex;
+  gap: 6px;
+}
+
+.mine .nick {
+  font-weight: 600;
+}
+
+.free {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.side {
+  gap: 22px;
+}
+
+/* El chat se queda con todo el alto que sobra en la columna lateral */
+.chatSection {
+  flex: 1;
+  min-height: 170px;
+}
+
+/* Pantallas bajas (laptops de 768 px): se aprieta el espaciado para que el chat siga a la vista */
+@media (max-height: 820px) {
+  .main,
+  .side {
+    gap: 14px;
+  }
+  .code {
+    font-size: clamp(2.2rem, 4vw, 3rem);
+  }
+  .sectionHead {
+    padding-bottom: 8px;
+  }
+  .players li {
+    padding: 2px 0;
+  }
+  .gridCar svg {
+    width: 72px;
+    height: auto;
+  }
+}
+
+@media (max-width: 1080px) {
+  .layout {
+    grid-template-columns: 1fr;
+    gap: 40px;
+    height: auto;
+  }
+  .main,
+  .side {
+    overflow: visible;
+  }
+}

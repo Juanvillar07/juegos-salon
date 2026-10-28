@@ -1,0 +1,317 @@
+/* Sistema de diseño: neutro, mucho aire y la tipografía como protagonista.
+   El color fuerte se reserva para los autos; la interfaz usa solo grises y un acento
+   que es el propio color del texto. Lo específico de cada componente vive en su *.module.css. */
+
+:root,
+:root[data-theme='light'] {
+  --bg: #f6f6f4;
+  --surface: #ffffff;
+  --surface-2: #efefec;
+  --border: #e4e4e0;
+  --border-strong: #d2d2cd;
+  --text: #17171a;
+  --muted: #6e6e76;
+  --subtle: #a3a3aa;
+  --accent: #17171a;
+  --accent-contrast: #ffffff;
+  --good: #3c7a57;
+  --bad: #b3493f;
+  --bad-bg: rgba(179, 73, 63, 0.1);
+  --warn: #9a6b1f;
+  --warn-bg: rgba(154, 107, 31, 0.1);
+  --caret: #17171a;
+  --road: #ebebe7;
+  --road-line: #d6d6d0;
+  --shadow: 0 1px 2px rgba(20, 20, 25, 0.04), 0 8px 24px rgba(20, 20, 25, 0.05);
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  --bg: #0f0f11;
+  --surface: #161619;
+  --surface-2: #1e1e22;
+  --border: #26262b;
+  --border-strong: #35353b;
+  --text: #ececee;
+  --muted: #94949c;
+  --subtle: #5c5c64;
+  --accent: #ececee;
+  --accent-contrast: #0f0f11;
+  --good: #7fb592;
+  --bad: #e08a7f;
+  --bad-bg: rgba(224, 138, 127, 0.12);
+  --warn: #d9b46a;
+  --warn-bg: rgba(217, 180, 106, 0.12);
+  --caret: #ececee;
+  --road: #1a1a1d;
+  --road-line: #2e2e33;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 32px rgba(0, 0, 0, 0.25);
+  color-scheme: dark;
+}
+
+:root {
+  --radius: 16px;
+  --radius-sm: 10px;
+  --font: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --mono: ui-monospace, 'SF Mono', 'Cascadia Code', 'Roboto Mono', Menlo, Consolas, monospace;
+  font-family: var(--font);
+  font-size: 16px;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  transition: background 0.25s;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+h3 {
+  font-size: 1rem;
+}
+
+p {
+  margin: 0;
+}
+
+::selection {
+  background: var(--text);
+  color: var(--bg);
+}
+
+input,
+textarea {
+  font: inherit;
+  padding: 11px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  min-width: 0;
+  transition: border-color 0.15s;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--subtle);
+}
+
+input:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--text);
+}
+
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px;
+  position: relative;
+}
+
+.narrow {
+  max-width: 440px;
+  margin: 10vh auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.error {
+  color: var(--bad);
+  font-size: 0.9rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Etiqueta pequeña en mayúsculas, usada como título de sección */
+.label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.btn {
+  font: inherit;
+  font-weight: 500;
+  font-size: 0.95rem;
+  padding: 11px 18px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  white-space: nowrap;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    opacity 0.15s,
+    transform 0.1s;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+
+.btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.btn.primary:hover:not(:disabled) {
+  background: var(--accent);
+  opacity: 0.88;
+}
+
+.btn.big {
+  padding: 15px 26px;
+  font-size: 1rem;
+}
+
+.btn.ghost {
+  border-color: transparent;
+}
+
+.btn.wide {
+  width: 100%;
+}
+
+/* Control segmentado: grupo de opciones excluyentes */
+.segmented {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--surface-2);
+}
+
+.segmented button {
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+.segmented button[aria-pressed='true'] {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+
+.segmented button:disabled {
+  cursor: default;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.tag {
+  font-size: 0.7rem;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.tag.me {
+  border-color: var(--text);
+  color: var(--text);
+}
+
+.tag.ready {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--good) 14%, transparent);
+  color: var(--good);
+}
+
+.tag.warn {
+  border-color: transparent;
+  background: var(--warn-bg);
+  color: var(--warn);
+}
+
+.tag.danger {
+  border-color: transparent;
+  background: var(--bad-bg);
+  color: var(--bad);
+}
+
+.dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.nick {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}

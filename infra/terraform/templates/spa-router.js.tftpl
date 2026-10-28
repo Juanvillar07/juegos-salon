@@ -1,0 +1,25 @@
+// CloudFront Function (viewer-request).
+// 1. www.${site_domain} -> ${site_domain} (301), para tener una sola URL canónica.
+// 2. Rutas sin extensión (/rally-de-letras/sala/ABCDE) -> /index.html: las resuelve React Router.
+function handler(event) {
+  var request = event.request;
+  var host = request.headers.host ? request.headers.host.value : '';
+
+  if (host.indexOf('www.') === 0) {
+    var qs = request.querystring && Object.keys(request.querystring).length
+      ? '?' + Object.keys(request.querystring).map(function (k) {
+          return k + '=' + request.querystring[k].value;
+        }).join('&')
+      : '';
+    return {
+      statusCode: 301,
+      statusDescription: 'Moved Permanently',
+      headers: { location: { value: 'https://${site_domain}' + request.uri + qs } },
+    };
+  }
+
+  if (request.uri.indexOf('.') === -1) {
+    request.uri = '/index.html';
+  }
+  return request;
+}

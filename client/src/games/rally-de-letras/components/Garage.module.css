@@ -1,0 +1,159 @@
+.garage {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Escenario: el auto sobre una línea de suelo, sin decoración */
+.stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 36px 0 18px;
+  border-radius: var(--radius);
+  background:
+    linear-gradient(var(--border), var(--border)) 50% calc(100% - 52px) / 80% 1px no-repeat,
+    var(--surface-2);
+}
+
+/* Compacto (lobby): vista previa más baja y modelos solo con su ícono */
+.compact {
+  gap: 12px;
+}
+
+.compact .stage {
+  padding: 18px 0 10px;
+  gap: 8px;
+  background:
+    linear-gradient(var(--border), var(--border)) 50% calc(100% - 40px) / 80% 1px no-repeat,
+    var(--surface-2);
+}
+
+.compact .models {
+  gap: 6px;
+}
+
+.compact .model {
+  align-items: center;
+  padding: 10px 6px;
+}
+
+.compact .model svg {
+  margin: 0;
+}
+
+.car {
+  animation: rollIn 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes rollIn {
+  from {
+    opacity: 0;
+    transform: translateX(-24px);
+  }
+}
+
+.caption {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.modelName {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.paintName {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.models {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.model {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+
+.model:hover {
+  background: var(--surface-2);
+}
+
+.model.selected {
+  border-color: var(--text);
+}
+
+.model svg {
+  align-self: center;
+  margin: 2px 0 4px;
+}
+
+.modelLabel {
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.modelDesc {
+  font-size: 0.75rem;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.colors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.swatch {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 50%;
+  border: none;
+  background: var(--swatch);
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.12),
+    0 0 0 3px var(--surface),
+    0 0 0 4px transparent;
+  cursor: pointer;
+  transition: box-shadow 0.15s;
+}
+
+.swatch.selected {
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.12),
+    0 0 0 3px var(--surface),
+    0 0 0 4.5px var(--text);
+}
+
+.swatch:disabled {
+  cursor: not-allowed;
+  opacity: 0.25;
+}
+
+@media (max-width: 520px) {
+  .models {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
