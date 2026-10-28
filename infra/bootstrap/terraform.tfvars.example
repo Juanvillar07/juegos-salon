@@ -1,0 +1,10 @@
+# Opcional: copia este archivo como terraform.tfvars si alguno de los valores por defecto no te sirve.
+
+# github_repository           = "Juanvillar07/juegos-salon"
+# github_environment          = "production"
+# aws_region                  = "us-east-1"
+# create_github_oidc_provider = false   # si la cuenta ya tiene el proveedor OIDC de GitHub
+
+# Si GitHub Actions falla con "Not authorized to perform sts:AssumeRoleWithWebIdentity" y en CloudTrail
+# el "sub" rechazado trae IDs (repo:propietario@123/nombre@456:...), indícalos aquí:
+# github_ids = { owner = 123, repository = 456 }

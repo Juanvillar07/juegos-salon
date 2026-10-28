@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { SessionRegistry } from '../../src/games/rally-de-letras/realtime/SessionRegistry.js';
+import { SessionRegistry } from '../../src/common/SessionRegistry.js';
 
 const VALID = 'abcdef12-3456-7890-abcd-ef1234567890';
 

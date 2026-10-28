@@ -24,13 +24,15 @@ import {
   type RoomState,
 } from '@typeracer/shared';
 import { computeResults, playerWpm } from './results.js';
-import { generateRoomCode, normalizeRoomCode } from './roomCode.js';
+import { generateRoomCode, normalizeRoomCode } from '../../../common/roomCode.js';
 import {
   isActive,
+  isRacing,
   type AutoStartDecision,
   type LeaveResult,
   type Player,
   type ProgressResult,
+  type RaceOutcome,
   type RaceText,
   type Result,
   type Room,
@@ -38,9 +40,12 @@ import {
 
 /** Id del texto personalizado (los del catálogo usan su índice, 0 en adelante). */
 const CUSTOM_TEXT_ID = -1;
+/** Cuántos textos recientes del catálogo no se repiten en una sala. */
+const RECENT_TEXTS = 30;
 
 export interface RoomManagerOptions {
-  pickText: (excludeId: number | null) => RaceText;
+  /** Elige un texto del catálogo evitando los recientes de la sala (del más antiguo al más nuevo). */
+  pickText: (recentIds: readonly number[]) => RaceText;
   now?: () => number;
   generateCode?: () => string;
   /** Espera de la salida automática cuando la mayoría está lista. */
@@ -61,7 +66,7 @@ export class RoomManager {
   /** Sala de cada jugador activo (los que abandonaron una carrera ya no están aquí). */
   private playerRoom = new Map<string, string>();
   private now: () => number;
-  private pickText: (excludeId: number | null) => RaceText;
+  private pickText: (recentIds: readonly number[]) => RaceText;
   private generateCode: () => string;
   private autoStartMs: number;
 
@@ -104,7 +109,7 @@ export class RoomManager {
       phase: 'lobby',
       players: new Map(),
       text: null,
-      lastTextId: null,
+      recentTextIds: [],
       startAt: null,
       endedAt: null,
       finishCount: 0,
@@ -147,7 +152,9 @@ export class RoomManager {
     const room = this.getRoomOfPlayer(playerId);
     const player = room?.players.get(playerId);
     if (!room || !player) return { ok: false, error: 'No estás en ninguna sala' };
-    if (room.phase === 'racing') return { ok: false, error: 'No puedes cambiar de auto durante la carrera' };
+    if (room.phase === 'racing' && !player.retired) {
+      return { ok: false, error: 'No puedes cambiar de auto durante la carrera' };
+    }
     if (prefs.car !== undefined && !isCarModel(prefs.car)) return { ok: false, error: 'Ese auto no existe' };
     if (prefs.color !== undefined) {
       if (!isCarColor(prefs.color)) return { ok: false, error: 'Ese color no está disponible' };
@@ -183,7 +190,7 @@ export class RoomManager {
    */
   leaveRoom(playerId: string): LeaveResult {
     const room = this.getRoomOfPlayer(playerId);
-    const empty: LeaveResult = { room: null, roomDeleted: false, hostChanged: false, raceOver: false };
+    const empty: LeaveResult = { room: null, roomDeleted: false, hostChanged: false, race: 'continues' };
     if (!room) return empty;
     this.playerRoom.delete(playerId);
 
@@ -202,7 +209,7 @@ export class RoomManager {
       room.hostId = (active.find((p) => p.status === 'connected') ?? active[0]).id;
       hostChanged = true;
     }
-    return { room, roomDeleted: false, hostChanged, raceOver: this.isRaceOver(room) };
+    return { room, roomDeleted: false, hostChanged, race: this.raceOutcome(room) };
   }
 
   // ------------------------------------------------------------------ chat
@@ -333,8 +340,8 @@ export class RoomManager {
     if (room.settings.customText !== null) {
       room.text = { id: CUSTOM_TEXT_ID, text: room.settings.customText };
     } else {
-      room.text = this.pickText(room.lastTextId);
-      room.lastTextId = room.text.id;
+      room.text = this.pickText(room.recentTextIds);
+      room.recentTextIds = [...room.recentTextIds, room.text.id].slice(-RECENT_TEXTS);
     }
     room.phase = 'racing';
     room.startAt = this.now() + COUNTDOWN_MS;
@@ -358,6 +365,7 @@ export class RoomManager {
 
     const now = this.now();
     if (now < room.startAt) return { accepted: false, reason: 'before-start' };
+    if (player.retired) return { accepted: false, reason: 'retired' };
     if (player.position !== null) return { accepted: false, reason: 'already-finished' };
 
     if (Number.isInteger(errors) && errors > player.errors) player.errors = errors;
@@ -374,14 +382,48 @@ export class RoomManager {
       player.finishedAt = now;
       finishedPosition = player.position;
     }
-    return { accepted: true, room, finishedPosition, raceOver: this.isRaceOver(room) };
+    return { accepted: true, room, finishedPosition, raceOver: this.raceOutcome(room) === 'over' };
   }
 
-  /** La carrera termina cuando llegan todos los que siguen en ella (incluidos los que reconectan). */
-  isRaceOver(room: Room): boolean {
-    if (room.phase !== 'racing') return false;
-    const active = [...room.players.values()].filter(isActive);
-    return active.length > 0 && active.every((p) => p.position !== null);
+  /**
+   * La carrera termina cuando llegan todos los que siguen en ella (incluidos los que reconectan).
+   * Si ya nadie corre (todos volvieron a la sala o se fueron): resultados si alguien llegó,
+   * o cancelada si nadie lo hizo.
+   */
+  raceOutcome(room: Room): RaceOutcome {
+    if (room.phase !== 'racing') return 'continues';
+    const racing = [...room.players.values()].filter(isRacing);
+    if (racing.some((p) => p.position === null)) return 'continues';
+    return racing.length > 0 || room.finishCount > 0 ? 'over' : 'cancelled';
+  }
+
+  /** Vuelve al lobby de la sala sin salir de ella: deja de correr y su auto queda en la pista. */
+  retireFromRace(playerId: string): Result<{ room: Room; race: RaceOutcome }> {
+    const room = this.getRoomOfPlayer(playerId);
+    const player = room?.players.get(playerId);
+    if (!room || !player) return { ok: false, error: 'No estás en ninguna sala' };
+    if (room.phase !== 'racing') return { ok: false, error: 'No hay ninguna carrera en curso' };
+    if (player.retired) return { ok: false, error: 'Ya volviste a la sala' };
+    player.retired = true;
+    return { ok: true, room, race: this.raceOutcome(room) };
+  }
+
+  /** El host cancela la carrera en curso: todos vuelven al lobby, sin resultados. */
+  cancelRace(playerId: string): Result<{ room: Room }> {
+    const room = this.getRoomOfPlayer(playerId);
+    if (!room) return { ok: false, error: 'No estás en ninguna sala' };
+    if (room.hostId !== playerId) return { ok: false, error: 'Solo el host puede cancelar la carrera' };
+    if (room.phase !== 'racing') return { ok: false, error: 'No hay ninguna carrera en curso' };
+    this.backToLobby(room);
+    return { ok: true, room };
+  }
+
+  /** Cancelación sin host: ya nadie corre y nadie llegó a la meta. */
+  abortRace(code: string): Room | null {
+    const room = this.getRoom(code);
+    if (!room || room.phase !== 'racing') return null;
+    this.backToLobby(room);
+    return room;
   }
 
   /** Cierra la carrera (todos llegaron o se agotó el tiempo) y calcula resultados. */
@@ -400,7 +442,12 @@ export class RoomManager {
     if (!room) return { ok: false, error: 'No estás en ninguna sala' };
     if (room.hostId !== playerId) return { ok: false, error: 'Solo el host puede iniciar otra carrera' };
     if (room.phase !== 'finished') return { ok: false, error: 'La carrera no ha terminado' };
+    this.backToLobby(room);
+    return { ok: true, room };
+  }
 
+  /** Vuelve al lobby (tras los resultados o cancelando) y descarta a los que abandonaron. */
+  private backToLobby(room: Room): void {
     for (const [id, p] of room.players) {
       if (!isActive(p)) room.players.delete(id);
     }
@@ -410,7 +457,6 @@ export class RoomManager {
     room.endedAt = null;
     room.results = null;
     room.players.forEach(resetPlayerRace);
-    return { ok: true, room };
   }
 
   // ---------------------------------------------------------- serialización
@@ -436,6 +482,7 @@ export class RoomManager {
         progress: p.progress,
         wpm: playerWpm(room, p, now),
         position: p.position,
+        retired: p.retired,
       })),
       text: room.text?.text ?? null,
       startAt: room.startAt,
@@ -468,6 +515,7 @@ export class RoomManager {
       errors: 0,
       position: null,
       finishedAt: null,
+      retired: false,
       lastChatAt: null,
     });
     this.playerRoom.set(id, room.code);
@@ -479,5 +527,6 @@ function resetPlayerRace(p: Player): void {
   p.errors = 0;
   p.position = null;
   p.finishedAt = null;
+  p.retired = false;
   p.ready = false;
 }

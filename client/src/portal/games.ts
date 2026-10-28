@@ -23,6 +23,15 @@ export const GAMES: GameEntry[] = [
     players: '1–8 jugadores',
     tags: ['Multijugador', 'Tiempo real', 'Chat'],
   },
+  {
+    id: 'carrera-de-silabas',
+    name: 'Carrera de Sílabas',
+    tagline: 'Carreras de palabras',
+    description: 'Todos reciben las mismas sílabas: escribe palabras que las contengan y suma un punto por letra hasta la meta.',
+    path: '/carrera-de-silabas',
+    players: '1–8 jugadores',
+    tags: ['Multijugador', 'Vocabulario', 'Chat'],
+  },
 ];
 
 /** Juego al que pertenece una ruta (para la cabecera). */

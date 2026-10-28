@@ -1,0 +1,63 @@
+# Pruebas y comprobaciones. Corre en cada pull request y, antes de desplegar, desde deploy.yml.
+name: CI
+
+on:
+  pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  test:
+    name: Tests y build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+
+  docker:
+    name: Imagen del servidor
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - run: docker build -t salon-server:ci .
+      - name: Arranca y responde /health
+        run: |
+          docker run -d --name salon -p 3001:3001 -e CLIENT_ORIGIN=http://localhost salon-server:ci
+          for _ in $(seq 1 30); do
+            if curl -fsS http://localhost:3001/health; then echo; exit 0; fi
+            sleep 1
+          done
+          docker logs salon
+          exit 1
+
+  lint-infra:
+    name: Terraform y scripts
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: 1.16.6
+      - run: terraform fmt -check -recursive infra
+      - name: terraform validate
+        run: |
+          for dir in infra/bootstrap infra/terraform; do
+            terraform -chdir="$dir" init -backend=false -input=false
+            terraform -chdir="$dir" validate
+          done
+      - run: shellcheck scripts/*.sh infra/terraform/templates/user_data.sh

@@ -1,11 +1,13 @@
 # Backend en la instancia de Lightsail: Node detrás de Caddy (HTTPS automático con Let's Encrypt).
-# Las variables (API_DOMAIN, CLIENT_ORIGIN) vienen de /opt/salon/.env, que escribe Terraform al crear la instancia.
+# Las variables (SITE_ADDRESS, CLIENT_ORIGIN) vienen de /opt/salon/.env, que escribe scripts/deploy-backend.sh.
 #   docker compose --env-file /opt/salon/.env up -d --build
 
 name: salon
 
 services:
   app:
+    # Con --build se construye aquí; GitHub Actions la construye fuera, la carga con este nombre y usa --no-build.
+    image: salon-server:latest
     build:
       context: ..
       dockerfile: Dockerfile
@@ -29,7 +31,7 @@ services:
       - '443:443'
       - '443:443/udp'
     environment:
-      API_DOMAIN: ${API_DOMAIN:?Falta API_DOMAIN}
+      SITE_ADDRESS: ${SITE_ADDRESS:?Falta SITE_ADDRESS}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data

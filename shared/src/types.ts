@@ -23,6 +23,8 @@ export interface PlayerInfo {
   wpm: number;
   /** Posición de llegada (1, 2, 3…) o null si no ha terminado. */
   position: number | null;
+  /** Volvió a la sala durante la carrera: ya no corre (su auto queda en la pista) y ve el lobby. */
+  retired: boolean;
 }
 
 export interface RaceResult {
@@ -33,6 +35,8 @@ export interface RaceResult {
   status: PlayerStatus;
   /** null = no terminó (DNF). */
   position: number | null;
+  /** Volvió a la sala antes de que terminara la carrera. */
+  retired: boolean;
   wpm: number;
   /** Porcentaje 0–100. */
   accuracy: number;

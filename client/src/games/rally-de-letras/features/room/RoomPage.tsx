@@ -42,12 +42,16 @@ export default function RoomPage() {
 
   if (inRoom && room && myId) {
     const isHost = room.hostId === myId;
+    // Quien vuelve a la sala durante la carrera ve el lobby mientras los demás terminan.
+    const retired = room.players.find((p) => p.id === myId)?.retired ?? false;
     return (
       <>
         <Toasts />
         {!connected && <p className="tag warn">Reconectando con el servidor…</p>}
-        {room.phase === 'lobby' && <Lobby room={room} myId={myId} isHost={isHost} />}
-        {room.phase === 'racing' && <Race key={room.startAt} room={room} myId={myId} />}
+        {(room.phase === 'lobby' || (room.phase === 'racing' && retired)) && (
+          <Lobby room={room} myId={myId} isHost={isHost} />
+        )}
+        {room.phase === 'racing' && !retired && <Race key={room.startAt} room={room} myId={myId} />}
         {room.phase === 'finished' && (
           <>
             <Results room={room} myId={myId} isHost={isHost} />

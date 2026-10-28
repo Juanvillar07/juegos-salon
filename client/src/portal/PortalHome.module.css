@@ -1,19 +1,21 @@
+/* El portal cabe en la ventana sin scroll: título, espacios y vistas previas se encogen con el
+   alto (vh) en pantallas bajas; en las altas se ven a su tamaño completo. */
 .portal {
   display: flex;
   flex-direction: column;
-  gap: 48px;
-  padding-top: 24px;
+  gap: clamp(24px, 4.5vh, 48px);
+  padding-top: clamp(0px, 2vh, 24px);
 }
 
 .hero {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: clamp(10px, 1.8vh, 18px);
   max-width: 720px;
 }
 
 .title {
-  font-size: clamp(3rem, 7vw, 5.6rem);
+  font-size: clamp(3rem, min(7vw, 8.5vh), 5.6rem);
   font-weight: 600;
   letter-spacing: -0.055em;
   line-height: 0.95;
@@ -63,7 +65,7 @@ a.card:hover .play {
 }
 
 .preview {
-  height: 180px;
+  height: clamp(110px, 17vh, 180px);
   background: var(--surface-2);
   display: flex;
   align-items: center;
@@ -73,7 +75,7 @@ a.card:hover .play {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 22px 24px 24px;
+  padding: clamp(14px, 2.2vh, 22px) 24px clamp(16px, 2.4vh, 24px);
   flex: 1;
 }
 

@@ -24,6 +24,7 @@ export default function HomePage() {
   }, [sessionReady]);
 
   const name = nickname.trim();
+  const codeComplete = code.trim().length === ROOM_CODE_LENGTH;
 
   const changeCar = (choice: CarChoice) => {
     setCar(choice);
@@ -51,7 +52,7 @@ export default function HomePage() {
   };
 
   return (
-    <div className={styles.layout}>
+    <div className={styles.layout} data-fit>
       <section className={styles.hero}>
         <span className="label">Rally de Letras</span>
         <h1 className={styles.title}>
@@ -72,43 +73,60 @@ export default function HomePage() {
           </div>
         </div>
 
-        <form className={styles.form} onSubmit={onCreate}>
-          <label className="field">
-            <span className="label">Nombre de piloto</span>
-            <input
-              className={styles.nameInput}
-              value={nickname}
-              maxLength={MAX_NICKNAME_LENGTH}
-              onChange={(e) => {
-                setNickname(e.target.value);
-                setError(null);
-              }}
-              placeholder="¿Cómo te llamas?"
-              autoFocus
-            />
-          </label>
-          <button className="btn primary big" type="submit" disabled={!sessionReady || busy}>
-            Crear sala <span aria-hidden="true">→</span>
-          </button>
-        </form>
-
-        <form className={styles.join} onSubmit={onJoin}>
-          <span className="muted">¿Tienes un código?</span>
+        <label className="field">
+          <span className="label">Nombre de piloto</span>
           <input
-            className={`${styles.codeInput} num`}
-            value={code}
-            maxLength={ROOM_CODE_LENGTH}
+            className={styles.nameInput}
+            value={nickname}
+            maxLength={MAX_NICKNAME_LENGTH}
             onChange={(e) => {
-              setCode(e.target.value.toUpperCase());
+              setNickname(e.target.value);
               setError(null);
             }}
-            placeholder="ABCDE"
-            aria-label="Código de sala"
+            placeholder="¿Cómo te llamas?"
+            autoFocus
           />
-          <button className="btn" type="submit" disabled={!sessionReady || code.trim().length !== ROOM_CODE_LENGTH}>
-            Unirse
-          </button>
-        </form>
+        </label>
+
+        {/* Crear y unirse pesan lo mismo: quien recibió un código lo ve tan claro como quien invita. */}
+        <div className={styles.options}>
+          <form className={styles.option} onSubmit={onCreate}>
+            <div>
+              <h2 className={styles.optionTitle}>Crear una sala</h2>
+              <p className={styles.optionText}>Elige los ajustes y comparte el enlace para invitar.</p>
+            </div>
+            <button className="btn primary big" type="submit" disabled={!sessionReady || busy}>
+              Crear sala <span aria-hidden="true">→</span>
+            </button>
+          </form>
+
+          <form className={styles.option} onSubmit={onJoin}>
+            <div>
+              <h2 className={styles.optionTitle}>Unirse a una sala</h2>
+              <p className={styles.optionText}>Escribe el código de {ROOM_CODE_LENGTH} letras que te pasaron.</p>
+            </div>
+            <div className={styles.joinRow}>
+              <input
+                className={`${styles.codeInput} num`}
+                value={code}
+                maxLength={ROOM_CODE_LENGTH}
+                onChange={(e) => {
+                  setCode(e.target.value.toUpperCase());
+                  setError(null);
+                }}
+                placeholder="ABCDE"
+                aria-label="Código de sala"
+              />
+              <button
+                className={`btn big ${codeComplete ? 'primary' : ''}`}
+                type="submit"
+                disabled={!sessionReady || !codeComplete}
+              >
+                Unirse
+              </button>
+            </div>
+          </form>
+        </div>
 
         {error && <p className="error">{error}</p>}
       </section>

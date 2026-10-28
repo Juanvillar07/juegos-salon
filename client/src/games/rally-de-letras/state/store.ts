@@ -114,6 +114,21 @@ export function sendProgress(correctChars: number, errors: number): void {
   socket.emit('race:progress', { correctChars, errors });
 }
 
+/**
+ * Deja de correr y vuelve al lobby de la sala, sin salir de ella. Se marca al momento, sin
+ * esperar al servidor: así se ve el lobby enseguida y su propio aviso no sale como notificación.
+ */
+export function retireFromRace(): void {
+  const { room, myId } = state;
+  if (room) setState({ room: { ...room, players: room.players.map((p) => (p.id === myId ? { ...p, retired: true } : p)) } });
+  socket.emit('race:retire');
+}
+
+/** Cancela la carrera en curso (solo el host): todos vuelven al lobby. */
+export function cancelRace(): void {
+  socket.emit('race:cancel');
+}
+
 export function playAgain(): void {
   socket.emit('race:again');
 }
@@ -156,8 +171,10 @@ socket.on('room:state', applySnapshot);
 socket.on('chat:history', (messages) => setState({ chat: messages }));
 socket.on('chat:message', (message) => {
   setState({ chat: [...state.chat, message] });
-  // Durante la carrera el chat no se ve: los avisos (alguien abandonó…) salen como notificación.
-  if (message.kind === 'system' && state.room?.phase === 'racing') pushNotice(message.text);
+  // Mientras se corre el chat no se ve: los avisos (alguien abandonó…) salen como notificación.
+  // Quien volvió a la sala ya los ve en el chat del lobby.
+  const me = state.room?.players.find((p) => p.id === state.myId);
+  if (message.kind === 'system' && state.room?.phase === 'racing' && !me?.retired) pushNotice(message.text);
 });
 
 socket.on('race:countdown', ({ serverNow: sNow }) => setState({ clockOffset: sNow - Date.now() }));

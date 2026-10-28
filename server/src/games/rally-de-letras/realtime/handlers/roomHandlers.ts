@@ -1,4 +1,4 @@
-import { normalizeRoomCode } from '../../domain/roomCode.js';
+import { normalizeRoomCode } from '../../../../common/roomCode.js';
 import type { ClientSocket, RealtimeContext } from '../context.js';
 
 export function registerRoomHandlers(socket: ClientSocket, ctx: RealtimeContext): void {

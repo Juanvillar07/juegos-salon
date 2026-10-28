@@ -1,0 +1,48 @@
+name: Terraform init
+description: Instala Terraform e inicializa infra/terraform con el estado en S3 (las credenciales de AWS ya deben estar configuradas).
+
+inputs:
+  state-bucket:
+    description: Bucket del estado (output github_variables de infra/bootstrap).
+    required: true
+  state-key:
+    description: Ruta del estado dentro del bucket.
+    required: true
+  region:
+    description: Región del bucket.
+    required: true
+  tfvars:
+    description: Contenido de terraform.tfvars. Solo hace falta para plan y apply, no para leer outputs.
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - uses: hashicorp/setup-terraform@v4
+      with:
+        terraform_version: 1.16.6
+        # Sin el wrapper, `terraform output -raw` devuelve solo el valor (lo usan los scripts).
+        terraform_wrapper: false
+
+    - name: terraform.tfvars
+      if: inputs.tfvars != ''
+      shell: bash
+      env:
+        TFVARS: ${{ inputs.tfvars }}
+      run: printf '%s\n' "$TFVARS" > infra/terraform/terraform.tfvars
+
+    - name: terraform init
+      shell: bash
+      working-directory: infra/terraform
+      env:
+        BUCKET: ${{ inputs.state-bucket }}
+        KEY: ${{ inputs.state-key }}
+        REGION: ${{ inputs.region }}
+      run: |
+        terraform init -input=false \
+          -backend-config="bucket=$BUCKET" \
+          -backend-config="key=$KEY" \
+          -backend-config="region=$REGION" \
+          -backend-config="encrypt=true" \
+          -backend-config="use_lockfile=true"

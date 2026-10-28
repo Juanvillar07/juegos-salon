@@ -1,6 +1,8 @@
-# Caddy obtiene y renueva solo el certificado de {$API_DOMAIN} y reenvía todo a Node,
-# incluidas las conexiones WebSocket de Socket.IO.
-{$API_DOMAIN} {
+# {$SITE_ADDRESS} lo pone scripts/deploy-backend.sh (output caddy_address de Terraform):
+#   api.<dominio>: Caddy obtiene y renueva solo su certificado (Let's Encrypt) y sirve HTTPS.
+#   :80 (sin dominio): HTTP plano; CloudFront pone el HTTPS delante.
+# En los dos casos reenvía todo a Node, incluidas las conexiones WebSocket de Socket.IO.
+{$SITE_ADDRESS} {
 	encode zstd gzip
 	reverse_proxy app:3001
 }

@@ -1,6 +1,7 @@
 # Alerta de presupuesto (las dos primeras alertas de AWS Budgets son gratuitas).
 resource "aws_budgets_budget" "monthly" {
-  count = var.budget_alert_email == "" ? 0 : 1
+  # El correo es sensible (no sale en los planes), pero saber si está vacío no lo es.
+  count = nonsensitive(var.budget_alert_email == "") ? 0 : 1
 
   name         = "${var.project_name}-mensual"
   budget_type  = "COST"

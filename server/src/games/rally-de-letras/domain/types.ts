@@ -16,6 +16,8 @@ export interface Player {
   errors: number;
   position: number | null;
   finishedAt: number | null;
+  /** Volvió a la sala durante la carrera: ya no corre, pero sigue en la sala. */
+  retired: boolean;
   /** Último mensaje de chat, para limitar la frecuencia. */
   lastChatAt: number | null;
 }
@@ -27,7 +29,8 @@ export interface Room {
   /** Map conserva el orden de llegada, que se usa para elegir nuevo host. */
   players: Map<string, Player>;
   text: RaceText | null;
-  lastTextId: number | null;
+  /** Textos del catálogo corridos hace poco (del más antiguo al más nuevo), para no repetirlos. */
+  recentTextIds: number[];
   startAt: number | null;
   endedAt: number | null;
   finishCount: number;
@@ -63,15 +66,28 @@ export type ProgressResult =
       raceOver: boolean;
     };
 
+/**
+ * Cómo queda la carrera tras una salida o un retiro:
+ * - continues: alguien sigue corriendo.
+ * - over: los que siguen corriendo ya llegaron (o nadie corre, pero alguien llegó): hay resultados.
+ * - cancelled: nadie corre y nadie llegó: se vuelve al lobby sin resultados.
+ */
+export type RaceOutcome = 'continues' | 'over' | 'cancelled';
+
 export interface LeaveResult {
   room: Room | null;
   roomDeleted: boolean;
   hostChanged: boolean;
-  /** true si la salida dejó a todos los que siguen en la carrera ya terminados. */
-  raceOver: boolean;
+  /** Solo importa si la sala estaba en carrera. */
+  race: RaceOutcome;
 }
 
 /** Un jugador cuenta como "en la sala" mientras no la haya abandonado (aunque esté reconectando). */
 export function isActive(player: Player): boolean {
   return player.status !== 'left';
+}
+
+/** Sigue en la carrera: está en la sala y no volvió al lobby. */
+export function isRacing(player: Player): boolean {
+  return isActive(player) && !player.retired;
 }

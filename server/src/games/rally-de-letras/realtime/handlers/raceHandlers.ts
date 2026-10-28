@@ -26,6 +26,19 @@ export function registerRaceHandlers(socket: ClientSocket, ctx: RealtimeContext)
     if (res.raceOver) ctx.finishRace(room.code);
   });
 
+  socket.on('race:retire', () => {
+    const res = manager.retireFromRace(playerId);
+    if (!res.ok) return void socket.emit('error', { message: res.error });
+    ctx.announce(res.room.code, `${res.room.players.get(playerId)!.nickname} volvió a la sala`);
+    ctx.settleRace(res.room, res.race);
+  });
+
+  socket.on('race:cancel', () => {
+    const res = manager.cancelRace(playerId);
+    if (!res.ok) return void socket.emit('error', { message: res.error });
+    ctx.returnToLobby(res.room, 'El host canceló la carrera');
+  });
+
   socket.on('race:again', () => {
     const res = manager.resetToLobby(playerId);
     if (!res.ok) return void socket.emit('error', { message: res.error });

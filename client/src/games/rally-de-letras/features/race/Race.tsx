@@ -5,7 +5,7 @@ import Speedometer from '../../components/Speedometer';
 import Track from '../../components/Track';
 import TrafficLight from '../../components/TrafficLight';
 import { formatCountdown } from '../../lib/format';
-import { serverNow } from '../../state/store';
+import { cancelRace, retireFromRace, serverNow } from '../../state/store';
 import { GAME_HOME } from '../../routes';
 import TextDisplay from './TextDisplay';
 import { applyInput, createTypingState, splitWords, viewOf } from './typing';
@@ -30,6 +30,7 @@ export default function Race({ room, myId }: Props) {
   const text = room.text!;
   const startAt = room.startAt!;
   const me = room.players.find((p) => p.id === myId);
+  const isHost = room.hostId === myId;
   const words = useMemo(() => splitWords(text), [text]);
 
   // Si volvemos a una carrera ya empezada (recarga), se retoma desde lo que confirmó el servidor.
@@ -73,7 +74,8 @@ export default function Race({ room, myId }: Props) {
     me?.position ??
     1 + room.players.filter((p) => p.id !== myId && (p.position !== null || p.progress > view.correctChars)).length;
 
-  // Salir lleva al inicio, que avisa al servidor; en la pista quedamos como "se fue".
+  // Volver a la sala: dejamos de correr pero seguimos en ella (vemos el lobby hasta que termine).
+  // Salir de la sala lleva al inicio, que avisa al servidor; en la pista quedamos como "se fue".
   const leave = () => navigate(GAME_HOME);
   const block = (e: { preventDefault: () => void }) => e.preventDefault();
 
@@ -93,12 +95,20 @@ export default function Race({ room, myId }: Props) {
         <div className={styles.leave}>
           {confirmLeave ? (
             <div className={styles.confirm}>
-              <span>¿Abandonar?</span>
+              <span>¿Salir de la carrera?</span>
               <button className="btn" onClick={() => setConfirmLeave(false)}>
                 Seguir
               </button>
-              <button className={`btn ${styles.danger}`} onClick={leave}>
-                Abandonar
+              <button className="btn primary" onClick={retireFromRace}>
+                Volver a la sala
+              </button>
+              {isHost && (
+                <button className={`btn ${styles.danger}`} onClick={cancelRace} title="Todos vuelven a la sala">
+                  Cancelar carrera
+                </button>
+              )}
+              <button className="btn ghost" onClick={leave}>
+                Salir de la sala
               </button>
             </div>
           ) : (
@@ -143,6 +153,9 @@ export default function Race({ room, myId }: Props) {
                 {typing.bestStreak >= STREAK_MIN && ` · mejor racha ×${typing.bestStreak}`}
               </p>
               <p className="muted">Esperando a los demás pilotos.</p>
+              <button className={`btn ${styles.toRoom}`} onClick={retireFromRace}>
+                Volver a la sala
+              </button>
             </div>
           </div>
         ) : (

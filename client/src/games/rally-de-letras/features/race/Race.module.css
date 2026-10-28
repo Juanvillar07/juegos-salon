@@ -24,6 +24,8 @@
 
 .confirm {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   align-items: center;
   gap: 10px;
   font-size: 0.9rem;
@@ -292,6 +294,10 @@
 
 .finish p {
   margin-top: 4px;
+}
+
+.toRoom {
+  margin-top: 10px;
 }
 
 @media (max-width: 760px) {
