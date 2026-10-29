@@ -3,9 +3,11 @@ import type { CarPrefs, ChatMessage } from '@typeracer/shared';
 import type {
   Ack,
   CreateAck,
+  JoinAck,
   RoomSettings,
   RoomSnapshot,
   RoomState,
+  SkipAck,
   WordAck,
 } from '@typeracer/shared/carrera-de-silabas';
 import { ordinal } from '../../rally-de-letras/lib/format';
@@ -77,8 +79,24 @@ export function createRoom(nickname: string): Promise<CreateAck> {
   return new Promise((resolve) => socket.emit('room:create', { nickname, ...getCarChoice() }, resolve));
 }
 
-export function joinRoom(code: string, nickname: string): Promise<Ack> {
-  return new Promise((resolve) => socket.emit('room:join', { code, nickname, ...getCarChoice() }, resolve));
+/** `password` solo si la sala la pide (la respuesta trae needsPassword si falta o no coincide). */
+export function joinRoom(code: string, nickname: string, password?: string): Promise<JoinAck> {
+  return new Promise((resolve) => socket.emit('room:join', { code, nickname, password, ...getCarChoice() }, resolve));
+}
+
+/** Expulsa a un jugador (host). Si el servidor lo rechaza, se muestra el error. */
+export function kickPlayer(playerId: string): Promise<Ack> {
+  return new Promise((resolve) =>
+    socket.emit('room:kick', { playerId }, (res) => {
+      if (!res.ok) setState({ error: res.error });
+      resolve(res);
+    }),
+  );
+}
+
+/** Pone o quita (null) la contraseña de la sala (host). */
+export function setRoomPassword(password: string | null): Promise<Ack> {
+  return new Promise((resolve) => socket.emit('room:password', { password }, resolve));
 }
 
 /** Cambia auto/color en la sala. Si el servidor lo rechaza (color ocupado), se muestra el error. */
@@ -141,6 +159,25 @@ export function submitWord(word: string): Promise<WordAck> {
   );
 }
 
+/** Pasa a la siguiente sílaba pagando la penalización de la sala; refleja el marcador al momento. */
+export function skipSyllable(): Promise<SkipAck> {
+  return new Promise((resolve) =>
+    socket.emit('race:skip', (res) => {
+      if (res.ok && state.room) {
+        setState({
+          room: {
+            ...state.room,
+            players: state.room.players.map((p) =>
+              p.id === state.myId ? { ...p, score: res.score, syllableIndex: res.syllableIndex } : p,
+            ),
+          },
+        });
+      }
+      resolve(res);
+    }),
+  );
+}
+
 /**
  * Deja de correr y vuelve al lobby de la sala, sin salir de ella. Se marca al momento, sin
  * esperar al servidor: así se ve el lobby enseguida y su propio aviso no sale como notificación.
@@ -192,6 +229,8 @@ socket.on('session:ready', ({ sessionId, playerId, room }) => {
 });
 
 socket.on('session:replaced', () => setState({ replaced: true, room: null }));
+// Expulsado por el host: sin sala, la página vuelve a pedir entrar y el servidor explica por qué no.
+socket.on('room:kicked', () => setState({ room: null, chat: [], notices: [], error: null }));
 
 socket.on('room:state', applySnapshot);
 

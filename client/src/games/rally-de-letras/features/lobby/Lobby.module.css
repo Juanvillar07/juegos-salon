@@ -32,6 +32,19 @@
   margin-top: 6px;
 }
 
+/* Candado junto al código: la sala pide contraseña. */
+.lock {
+  display: inline-flex;
+  margin-left: 12px;
+  vertical-align: middle;
+  color: var(--muted);
+}
+
+.lock svg {
+  width: 0.5em;
+  height: 0.5em;
+}
+
 .section {
   display: flex;
   flex-direction: column;

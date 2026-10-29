@@ -51,6 +51,19 @@ describe('typing', () => {
     expect(view.correctChars).toBe(TEXT.length);
   });
 
+  it('acepta varias palabras de golpe (autocompletado del móvil o texto insertado en un evento)', () => {
+    const s = applyInput(words, createTypingState(TEXT), 'hola mundo fe');
+    expect(s).toMatchObject({ wordIndex: 2, input: 'fe', errors: 0, streak: 2 });
+    expect(viewOf(words, s).correctChars).toBe('hola mundo fe'.length);
+    expect(viewOf(words, applyInput(words, s, 'feliz')).finished).toBe(true);
+  });
+
+  it('en un bloque con un error avanza hasta donde estaba bien y cuenta el resto como fallo', () => {
+    const s = applyInput(words, createTypingState(TEXT), 'hola mundx feliz');
+    expect(s).toMatchObject({ wordIndex: 1, input: 'mundx feliz' });
+    expect(s.errors).toBeGreaterThan(0);
+  });
+
   it('limita lo que se puede escribir de más', () => {
     const s = applyInput(words, createTypingState(TEXT), 'x'.repeat(50));
     expect(s.input.length).toBe('hola '.length + 10);

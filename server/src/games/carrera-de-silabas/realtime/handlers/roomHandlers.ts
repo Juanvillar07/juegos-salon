@@ -22,12 +22,12 @@ export function registerRoomHandlers(socket: ClientSocket, ctx: RealtimeContext)
     ctx.broadcastState(res.room);
   });
 
-  socket.on('room:join', ({ code, nickname, car, color }, ack) => {
+  socket.on('room:join', ({ code, nickname, car, color, password }, ack) => {
     if (typeof ack !== 'function') return;
     const roomCode = String(code ?? '');
     leaveOtherRoom(roomCode);
     const alreadyIn = manager.getRoomOfPlayer(playerId)?.code === normalizeRoomCode(roomCode);
-    const res = manager.joinRoom(roomCode, playerId, String(nickname ?? ''), { car, color });
+    const res = manager.joinRoom(roomCode, playerId, String(nickname ?? ''), { car, color }, password);
     if (!res.ok) return ack(res);
     socket.join(res.room.code);
     ack({ ok: true });
@@ -55,7 +55,32 @@ export function registerRoomHandlers(socket: ClientSocket, ctx: RealtimeContext)
 
   socket.on('room:settings', (patch, ack) => {
     if (typeof ack !== 'function') return;
-    const res = manager.updateSettings(playerId, { target: patch?.target, timeLimitSec: patch?.timeLimitSec });
+    const res = manager.updateSettings(playerId, {
+      target: patch?.target,
+      timeLimitSec: patch?.timeLimitSec,
+      skipPenalty: patch?.skipPenalty,
+    });
+    if (!res.ok) return ack(res);
+    ack({ ok: true });
+    ctx.broadcastState(res.room);
+  });
+
+  socket.on('room:kick', (payload, ack) => {
+    if (typeof ack !== 'function') return;
+    const res = manager.kick(playerId, payload?.playerId);
+    if (!res.ok) return ack(res);
+    const targetId = payload.playerId;
+    // Primero se le avisa (después ya no estará en el canal de la sala).
+    for (const s of ctx.io.sockets.values()) {
+      if (s.data.playerId === targetId) s.emit('room:kicked');
+    }
+    ctx.removePlayer(targetId, `${res.nickname} fue expulsado por el host`);
+    ack({ ok: true });
+  });
+
+  socket.on('room:password', (payload, ack) => {
+    if (typeof ack !== 'function') return;
+    const res = manager.setPassword(playerId, payload?.password ?? null);
     if (!res.ok) return ack(res);
     ack({ ok: true });
     ctx.broadcastState(res.room);

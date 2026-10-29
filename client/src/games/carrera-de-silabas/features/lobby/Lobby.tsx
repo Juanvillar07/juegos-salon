@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { CAR_MODEL_NAMES, MAX_PLAYERS } from '@typeracer/shared';
 import type { RoomState } from '@typeracer/shared/carrera-de-silabas';
 import Garage from '../../../rally-de-letras/components/Garage';
@@ -6,7 +5,11 @@ import StatusTag from '../../../rally-de-letras/components/StatusTag';
 import CarSprite from '../../../rally-de-letras/components/cars/CarSprite';
 import ScoreTrack from '../../components/ScoreTrack';
 import { saveCarChoice, type CarChoice } from '../../lib/storage';
-import { customizeCar } from '../../state/store';
+import { customizeCar, kickPlayer, setRoomPassword } from '../../state/store';
+import InvitePanel from '../../../../shell/InvitePanel';
+import KickButton from '../../../../shell/KickButton';
+import RoomPasswordField from '../../../../shell/RoomPasswordField';
+import { LockIcon } from '../../../../shell/icons';
 import Chat from '../chat/Chat';
 import { roomPath } from '../../routes';
 import RaceInProgress from './RaceInProgress';
@@ -21,23 +24,12 @@ interface Props {
 }
 
 export default function Lobby({ room, myId, isHost }: Props) {
-  const [copied, setCopied] = useState(false);
   const link = `${window.location.origin}${roomPath(room.code)}`;
   const me = room.players.find((p) => p.id === myId)!;
   const takenColors = new Set(room.players.filter((p) => p.id !== myId).map((p) => p.color));
   const freeSlots = MAX_PLAYERS - room.players.length;
   // Volvimos a la sala con la carrera en marcha: se ve en vivo en lugar de la parrilla.
   const racing = room.phase === 'racing';
-
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(link);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      // portapapeles no disponible: el enlace sigue visible para copiarlo a mano
-    }
-  };
 
   const changeCar = (choice: CarChoice) => {
     saveCarChoice(choice);
@@ -50,11 +42,16 @@ export default function Lobby({ room, myId, isHost }: Props) {
         <header className={styles.head}>
           <div>
             <span className="label">Sala</span>
-            <h1 className={`${styles.code} num`}>{room.code}</h1>
+            <h1 className={`${styles.code} num`}>
+              {room.code}
+              {room.locked && (
+                <span className={styles.lock} title="Sala con contraseña" aria-label="Sala con contraseña">
+                  <LockIcon />
+                </span>
+              )}
+            </h1>
           </div>
-          <button className="btn" onClick={copy}>
-            {copied ? 'Enlace copiado' : 'Copiar enlace'}
-          </button>
+          <InvitePanel link={link} code={room.code} gameName="Carrera de Sílabas" locked={room.locked} />
         </header>
 
         {racing ? (
@@ -88,6 +85,9 @@ export default function Lobby({ room, myId, isHost }: Props) {
                     {p.id === room.hostId && <span className="tag">host</span>}
                     {p.id === myId && <span className="tag me">tú</span>}
                     <StatusTag status={p.status} />
+                    {isHost && p.id !== myId && (
+                      <KickButton nickname={p.nickname} onKick={() => void kickPlayer(p.id)} />
+                    )}
                   </div>
                 </li>
               ))}
@@ -112,6 +112,15 @@ export default function Lobby({ room, myId, isHost }: Props) {
           </div>
           <RoomSettingsPanel settings={room.settings} isHost={isHost && !racing} />
         </section>
+
+        {isHost && (
+          <section className={styles.section}>
+            <div className={styles.sectionHead}>
+              <span className="label">Contraseña de la sala</span>
+            </div>
+            <RoomPasswordField locked={room.locked} save={setRoomPassword} />
+          </section>
+        )}
       </div>
 
       <aside className={styles.side}>

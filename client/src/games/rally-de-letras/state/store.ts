@@ -1,5 +1,14 @@
 import { useSyncExternalStore } from 'react';
-import type { Ack, CarPrefs, ChatMessage, CreateAck, RoomSettings, RoomSnapshot, RoomState } from '@typeracer/shared';
+import type {
+  Ack,
+  CarPrefs,
+  ChatMessage,
+  CreateAck,
+  JoinAck,
+  RoomSettings,
+  RoomSnapshot,
+  RoomState,
+} from '@typeracer/shared';
 import { ordinal } from '../lib/format';
 import { socket } from '../lib/socket';
 import { getCarChoice, setSessionId } from '../lib/storage';
@@ -68,8 +77,24 @@ export function createRoom(nickname: string): Promise<CreateAck> {
   return new Promise((resolve) => socket.emit('room:create', { nickname, ...getCarChoice() }, resolve));
 }
 
-export function joinRoom(code: string, nickname: string): Promise<Ack> {
-  return new Promise((resolve) => socket.emit('room:join', { code, nickname, ...getCarChoice() }, resolve));
+/** `password` solo si la sala la pide (la respuesta trae needsPassword si falta o no coincide). */
+export function joinRoom(code: string, nickname: string, password?: string): Promise<JoinAck> {
+  return new Promise((resolve) => socket.emit('room:join', { code, nickname, password, ...getCarChoice() }, resolve));
+}
+
+/** Expulsa a un jugador (host). Si el servidor lo rechaza, se muestra el error. */
+export function kickPlayer(playerId: string): Promise<Ack> {
+  return new Promise((resolve) =>
+    socket.emit('room:kick', { playerId }, (res) => {
+      if (!res.ok) setState({ error: res.error });
+      resolve(res);
+    }),
+  );
+}
+
+/** Pone o quita (null) la contraseña de la sala (host). */
+export function setRoomPassword(password: string | null): Promise<Ack> {
+  return new Promise((resolve) => socket.emit('room:password', { password }, resolve));
 }
 
 /** Cambia auto/color en la sala. Si el servidor lo rechaza (color ocupado), se muestra el error. */
@@ -165,6 +190,8 @@ socket.on('session:ready', ({ sessionId, playerId, room }) => {
 });
 
 socket.on('session:replaced', () => setState({ replaced: true, room: null }));
+// Expulsado por el host: sin sala, la página vuelve a pedir entrar y el servidor explica por qué no.
+socket.on('room:kicked', () => setState({ room: null, chat: [], notices: [], error: null }));
 
 socket.on('room:state', applySnapshot);
 

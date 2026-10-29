@@ -16,21 +16,31 @@ export default function RoomPage() {
   // Nickname con el que esta pestaña entró. Si llegó por enlace directo, se pide con un formulario.
   const [nickname, setNickname] = useState(getTabNickname);
   const [joinError, setJoinError] = useState<string | null>(null);
+  // Sala con contraseña: se pide con el formulario y se reintenta con ella.
+  const [password, setPassword] = useState<string | null>(null);
+  const [passwordPrompt, setPasswordPrompt] = useState<{ error: string | null } | null>(null);
 
   const inRoom = room?.code === code;
 
   // Solo se manda room:join cuando el servidor confirmó la sesión y no nos reincorporó él mismo
   // (al recargar dentro del periodo de gracia, session:ready ya trae la sala).
   useEffect(() => {
-    if (!sessionReady || inRoom || !nickname || joinError) return;
+    if (!sessionReady || inRoom || !nickname || joinError || (passwordPrompt && password === null)) return;
     let cancelled = false;
-    joinRoom(code, nickname).then((res) => {
-      if (!cancelled && !res.ok) setJoinError(res.error);
+    joinRoom(code, nickname, password ?? undefined).then((res) => {
+      if (cancelled || res.ok) return;
+      if (res.needsPassword) {
+        // La primera vez se pide sin error; si la contraseña puesta no sirvió, se explica por qué.
+        setPasswordPrompt({ error: password === null ? null : res.error });
+        setPassword(null);
+      } else {
+        setJoinError(res.error);
+      }
     });
     return () => {
       cancelled = true;
     };
-  }, [sessionReady, inRoom, nickname, code, joinError]);
+  }, [sessionReady, inRoom, nickname, code, joinError, password, passwordPrompt]);
 
   if (replaced) {
     return (
@@ -70,6 +80,20 @@ export default function RoomPage() {
           Volver al inicio
         </Link>
       </Message>
+    );
+  }
+
+  if (sessionReady && passwordPrompt && password === null) {
+    return (
+      <JoinForm
+        code={code}
+        askPassword
+        error={passwordPrompt.error}
+        onSubmit={(name, pass) => {
+          setNickname(name);
+          setPassword(pass ?? null);
+        }}
+      />
     );
   }
 

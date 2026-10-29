@@ -5,6 +5,8 @@ import type { PlayerProgress, RaceResult, RoomSnapshot } from './types.js';
 
 export type Ack = { ok: true } | { ok: false; error: string };
 export type CreateAck = { ok: true; code: string } | { ok: false; error: string };
+/** Respuesta al entrar a una sala: `needsPassword` si la sala la pide (falta o no coincide). */
+export type JoinAck = { ok: true } | { ok: false; error: string; needsPassword?: boolean };
 
 /** Lo que el cliente manda en el handshake (`io(url, { auth })`). */
 export interface SocketAuth {
@@ -14,8 +16,16 @@ export interface SocketAuth {
 
 export interface ClientToServerEvents {
   'room:create': (payload: { nickname: string } & CarPrefs, ack: (res: CreateAck) => void) => void;
-  'room:join': (payload: { code: string; nickname: string } & CarPrefs, ack: (res: Ack) => void) => void;
+  /** `password` solo si la sala la tiene (si falta o no coincide, la respuesta trae needsPassword). */
+  'room:join': (
+    payload: { code: string; nickname: string; password?: string } & CarPrefs,
+    ack: (res: JoinAck) => void,
+  ) => void;
   'room:leave': () => void;
+  /** Expulsar a un jugador de la sala (solo el host); no podrá volver a entrar. */
+  'room:kick': (payload: { playerId: string }, ack: (res: Ack) => void) => void;
+  /** Poner o quitar (null) la contraseña de la sala (solo el host). Nunca se difunde a los demás. */
+  'room:password': (payload: { password: string | null }, ack: (res: Ack) => void) => void;
   /** Cambiar auto o color (solo fuera de carrera). */
   'player:customize': (payload: CarPrefs, ack: (res: Ack) => void) => void;
   /** Marcar o desmarcar "Listo" en el lobby. */
@@ -37,6 +47,8 @@ export interface ServerToClientEvents {
   'session:ready': (payload: { sessionId: string; playerId: string; room: RoomSnapshot | null }) => void;
   /** La misma sesión se abrió en otra pestaña; esta conexión se cierra. */
   'session:replaced': () => void;
+  /** El host te expulsó de la sala. */
+  'room:kicked': () => void;
   'room:state': (state: RoomSnapshot) => void;
   /** Historial completo al entrar (o volver) a una sala. */
   'chat:history': (messages: ChatMessage[]) => void;

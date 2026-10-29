@@ -27,11 +27,13 @@ import {
   type TextLength,
 } from '@typeracer/shared';
 import { computeResults, playerWpm } from './results.js';
+import { PASSWORD_ATTEMPTS_PER_MINUTE, normalizeRoomPassword } from '@typeracer/shared';
 import { generateRoomCode, normalizeRoomCode } from '../../../common/roomCode.js';
 import {
   isActive,
   isRacing,
   type AutoStartDecision,
+  type JoinResult,
   type LeaveResult,
   type Player,
   type ProgressResult,
@@ -122,13 +124,16 @@ export class RoomManager {
       chat: [],
       chatSeq: 0,
       autoStartAt: null,
+      password: null,
+      banned: new Set(),
+      failedJoins: new Map(),
     };
     this.rooms.set(code, room);
     this.addPlayer(room, playerId, name, prefs);
     return { ok: true, room };
   }
 
-  joinRoom(code: string, playerId: string, nickname: string, prefs: CarPrefs = {}): Result<{ room: Room }> {
+  joinRoom(code: string, playerId: string, nickname: string, prefs: CarPrefs = {}, password?: unknown): JoinResult {
     const name = cleanNickname(nickname);
     if (!name) return { ok: false, error: 'El nickname no puede estar vacío' };
     const room = this.getRoom(code);
@@ -141,6 +146,11 @@ export class RoomManager {
       return { ok: true, room };
     }
     if (current) return { ok: false, error: 'Ya estás en otra sala' };
+    if (room.banned.has(playerId)) return { ok: false, error: 'El host te expulsó de esta sala' };
+    if (room.password !== null) {
+      const denied = this.checkPassword(room, playerId, password);
+      if (denied) return denied;
+    }
 
     const active = [...room.players.values()].filter(isActive).length;
     if (active >= MAX_PLAYERS) return { ok: false, error: `La sala está llena (máximo ${MAX_PLAYERS})` };
@@ -173,6 +183,54 @@ export class RoomManager {
     if (prefs.car) player.car = prefs.car;
     if (prefs.color) player.color = prefs.color;
     return { ok: true, room };
+  }
+
+  /** Contraseña al entrar: null si es correcta; si no, el error (con un tope de intentos por minuto). */
+  private checkPassword(room: Room, playerId: string, password: unknown): JoinResult | null {
+    const now = this.now();
+    const recent = (room.failedJoins.get(playerId) ?? []).filter((t) => now - t < 60_000);
+    if (recent.length >= PASSWORD_ATTEMPTS_PER_MINUTE) {
+      return { ok: false, error: 'Demasiados intentos: espera un minuto', needsPassword: true };
+    }
+    if (typeof password !== 'string' || password.trim() === '') {
+      return { ok: false, error: 'Esta sala tiene contraseña', needsPassword: true };
+    }
+    if (password.trim() === room.password) {
+      room.failedJoins.delete(playerId);
+      return null;
+    }
+    room.failedJoins.set(playerId, [...recent, now]);
+    return { ok: false, error: 'Contraseña incorrecta', needsPassword: true };
+  }
+
+  /** Pone o quita (null) la contraseña de la sala. Solo el host. */
+  setPassword(playerId: string, raw: unknown): Result<{ room: Room }> {
+    const room = this.getRoomOfPlayer(playerId);
+    if (!room) return { ok: false, error: 'No estás en ninguna sala' };
+    if (room.hostId !== playerId) return { ok: false, error: 'Solo el host puede cambiar la contraseña' };
+    if (raw === null) {
+      room.password = null;
+      return { ok: true, room };
+    }
+    const res = normalizeRoomPassword(raw);
+    if (!res.ok) return res;
+    room.password = res.password;
+    return { ok: true, room };
+  }
+
+  /**
+   * El host expulsa a un jugador: queda vetado en la sala (no puede volver a entrar).
+   * La salida en sí (avisos, carrera) la hace la capa de tiempo real con leaveRoom.
+   */
+  kick(hostId: string, targetId: unknown): Result<{ room: Room; nickname: string }> {
+    const room = this.getRoomOfPlayer(hostId);
+    if (!room) return { ok: false, error: 'No estás en ninguna sala' };
+    if (room.hostId !== hostId) return { ok: false, error: 'Solo el host puede expulsar' };
+    if (typeof targetId !== 'string' || targetId === hostId) return { ok: false, error: 'No puedes expulsarte a ti mismo' };
+    const target = room.players.get(targetId);
+    if (!target || !isActive(target)) return { ok: false, error: 'Ese jugador no está en la sala' };
+    room.banned.add(targetId);
+    return { ok: true, room, nickname: target.nickname };
   }
 
   /** Pérdida de conexión: el jugador conserva su lugar hasta que vuelva o se llame a leaveRoom. */
@@ -522,6 +580,7 @@ export class RoomManager {
       results: room.results,
       settings: room.settings,
       autoStartAt: room.autoStartAt,
+      locked: room.password !== null,
     };
   }
 

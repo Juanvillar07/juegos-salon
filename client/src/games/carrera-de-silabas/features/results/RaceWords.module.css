@@ -1,0 +1,70 @@
+/* Palabras de la carrera, bajo la tabla de resultados: una lista desplegable por piloto. */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.player {
+  border-bottom: 1px solid var(--border);
+  padding: 6px 0 10px;
+}
+
+.player summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  list-style: none;
+}
+
+.player summary::-webkit-details-marker {
+  display: none;
+}
+
+.player summary::after {
+  content: '';
+  width: 6px;
+  height: 6px;
+  margin-left: auto;
+  border-right: 1.5px solid var(--muted);
+  border-bottom: 1.5px solid var(--muted);
+  transform: rotate(45deg);
+  transition: transform var(--duration-fast) var(--ease-smooth-out);
+}
+
+.player[open] summary::after {
+  transform: rotate(-135deg);
+}
+
+.list {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 140px;
+  overflow: auto;
+}
+
+.list li {
+  font-size: 0.85rem;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--muted);
+}
+
+.list mark {
+  background: none;
+  color: var(--text);
+  font-weight: 700;
+}
+
+/* La palabra más larga del piloto. */
+.longest {
+  outline: 1px solid var(--good);
+  color: var(--text) !important;
+}
