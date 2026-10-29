@@ -23,7 +23,7 @@ function skipLabel(points: number): string {
 }
 
 function skipHint(points: number): string {
-  return points === 0 ? 'Pasar a la siguiente sílaba es gratis.' : `Pasar quita ${points} puntos (sin bajar de 0).`;
+  return points === 0 ? 'Pasar a la siguiente sílaba es gratis.' : `Pasar quita ${points} puntos, aunque te deje en negativo.`;
 }
 
 /** Meta de puntos, límite de tiempo y coste de pasar: el host los elige, el resto los ve. */
