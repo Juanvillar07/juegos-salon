@@ -1,0 +1,51 @@
+.pitch {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: var(--radius-sm);
+}
+
+/* El balón cruza la cancha y rebota; dos jugadores lo acompañan. */
+.animated .ball {
+  animation: pass 5s var(--ease-smooth-out, ease-in-out) infinite alternate;
+}
+
+.animated .runner {
+  animation: runRed 5s ease-in-out infinite alternate;
+}
+
+.animated .runnerAlt {
+  animation: runBlue 5s ease-in-out infinite alternate;
+}
+
+@keyframes pass {
+  0% {
+    transform: translate(-150px, -40px);
+  }
+  45% {
+    transform: translate(60px, 70px);
+  }
+  100% {
+    transform: translate(300px, -20px);
+  }
+}
+
+@keyframes runRed {
+  to {
+    transform: translate(180px, 90px);
+  }
+}
+
+@keyframes runBlue {
+  to {
+    transform: translate(-60px, -120px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animated .ball,
+  .animated .runner,
+  .animated .runnerAlt {
+    animation: none;
+  }
+}

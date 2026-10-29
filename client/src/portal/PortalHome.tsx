@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { revealDelay, useReveal } from '../shell/transitions';
 import { GAMES, type GameEntry } from './games';
+import CanchaPreview from './previews/CanchaPreview';
 import RallyPreview from './previews/RallyPreview';
 import SilabasPreview from './previews/SilabasPreview';
 import styles from './PortalHome.module.css';
@@ -9,6 +10,7 @@ import styles from './PortalHome.module.css';
 const PREVIEWS: Record<string, () => JSX.Element> = {
   'rally-de-letras': RallyPreview,
   'carrera-de-silabas': SilabasPreview,
+  'cancha-rapida': CanchaPreview,
 };
 
 export default function PortalHome() {
@@ -32,6 +34,7 @@ export default function PortalHome() {
         {GAMES.map((game) => (
           <GameCard key={game.id} game={game} />
         ))}
+        {/* Tarjeta "Más juegos en camino", oculta por ahora (sus estilos siguen en PortalHome.module.css).
         <div className={`${styles.card} ${styles.soon}`}>
           <div className={styles.soonMark} aria-hidden="true">
             +
@@ -39,6 +42,7 @@ export default function PortalHome() {
           <h2 className={styles.name}>Más juegos en camino</h2>
           <p className="muted">Pronto habrá nuevos juegos en el salón.</p>
         </div>
+        */}
       </section>
     </div>
   );

@@ -1,0 +1,14 @@
+.preview {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  padding: 14px 20px;
+}
+
+/* La cancha (2:1) ocupa el alto de la tarjeta, centrada. */
+.preview svg {
+  width: auto;
+  height: 100%;
+  max-width: 100%;
+}

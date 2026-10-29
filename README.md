@@ -6,12 +6,13 @@ Portal de juegos web multijugador. Cada juego vive en su propia sección del sit
 |---|---|---|
 | **Rally de Letras** | `/rally-de-letras` | Carreras de mecanografía: todos escriben el mismo texto y cada uno avanza con su auto según su progreso. |
 | **Carrera de Sílabas** | `/carrera-de-silabas` | Carreras de palabras: todos reciben la misma secuencia de sílabas y suman un punto por letra con cada palabra que la contenga, hasta la meta (100 o 200 puntos). |
+| **Cancha Rápida** | `/cancha-rapida` | Fútbol en tiempo real al estilo HaxBall: rojos contra azules en una cancha vista desde arriba, con teclado. |
 
 Monorepo con npm workspaces:
 
 | Paquete | Contenido |
 |---|---|
-| `shared/` | Tipos de los eventos de Socket.IO, tipos de sala y constantes. Rally de Letras se importa desde `@typeracer/shared` y Carrera de Sílabas desde `@typeracer/shared/carrera-de-silabas` |
+| `shared/` | Tipos de los eventos de Socket.IO, tipos de sala y constantes. Rally de Letras se importa desde `@typeracer/shared`, Carrera de Sílabas desde `@typeracer/shared/carrera-de-silabas` y Cancha Rápida desde `@typeracer/shared/cancha-rapida` (incluye su física) |
 | `server/` | Node.js + Express + Socket.IO. Cada juego en `src/games/<id>/`, con su lógica pura separada de Socket.IO; lo común a todos (sesiones, temporizadores, códigos de sala) en `src/common/` |
 | `client/` | React + Vite: el portal y cada juego (cargado bajo demanda) |
 
@@ -32,6 +33,10 @@ server/src/
       ├─ index.ts               # mountCarreraDeSilabas(io, …) → namespace /carrera-de-silabas
       ├─ domain/                # RoomManager (salas como Rally + carrera por palabras), diccionario y sílabas
       └─ realtime/              # capa Socket.IO: contexto y handlers
+   └─ cancha-rapida/
+      ├─ index.ts               # mountCanchaRapida(io, …) → namespace /cancha-rapida
+      ├─ domain/                # RoomManager (salas y equipos) y Match (reglas del partido, paso a paso)
+      └─ realtime/              # contexto con el bucle de simulación (60 Hz) y handlers
 
 client/src/
 ├─ main.tsx
@@ -39,6 +44,7 @@ client/src/
 ├─ portal/                      # Salón de Juegos: catálogo (games.ts), tarjetas y vistas previas
 ├─ games/rally-de-letras/       # todo el juego: RallyApp (rutas), features, components, state, lib
 ├─ games/carrera-de-silabas/    # SilabasApp; reutiliza componentes y estilos de Rally de Letras
+├─ games/cancha-rapida/         # CanchaApp: cancha en canvas, teclado, interpolación y predicción
 └─ styles/global.css            # variables y clases base; cada componente tiene su *.module.css
 ```
 
@@ -180,3 +186,18 @@ Salas, listos, chat, salir de la carrera (volver a la sala, salir o cancelar), a
 - Todos ven el avance de los demás en la pista (puntos y palabras acertadas), pero no qué palabras escribieron: el servidor nunca envía las palabras ajenas durante la carrera, para que nadie pueda copiarlas.
 - **Cómo se juega**: el lobby resume las reglas en una línea con un ejemplo (palabras más largas dan más puntos). "Ver reglas" abre el detalle con la meta, el tiempo y el coste de pasar que eligió el host.
 - **Palabras al final**: los resultados traen las palabras de cada piloto, con la sílaba que resolvió cada una, y cuántas sílabas pasó.
+
+## Reglas de Cancha Rápida
+
+Fútbol en tiempo real al estilo HaxBall, solo con teclado. Salas, chat, expulsar y reconexión funcionan como en los otros juegos. Lo propio:
+
+- **Equipos** (`team:join`, y `team:move` para el host): Rojo, Azul y Espectadores, con un máximo de 4 por equipo y 12 personas por sala. En la sala, los jugadores se arrastran de una columna a otra: cada uno a sí mismo (o con "Unirme") y el host a cualquiera. Quien entra va al equipo con menos jugadores (o a espectadores si están llenos). Los equipos se cambian entre partidos; quien llega en pleno partido mira como espectador.
+- **Ajustes** (`room:settings`, solo el host): goles para ganar (1, 3 por defecto, 5 o sin límite) y duración (3 por defecto, 5, 7 o 10 minutos de juego). Gana quien llegue al límite de goles o vaya por delante al acabarse el tiempo; puede haber empate.
+- **Partido** (`match:start`, solo el host; basta un jugador en un equipo para practicar): 3 s de cuenta atrás con la cancha quieta. Tras cada gol la jugada sigue 2 s (la pausa no cuenta en el reloj) y se vuelve al saque. El host puede terminarlo sin resultados (`match:stop`) y, tras los resultados, empezar la revancha o volver a la sala (`match:again`).
+- **Controles**: flechas o WASD para moverse; X o espacio para patear (con el balón al alcance; mantenerlo patea al tocarlo, una vez por pulsación). Enter enfoca el chat y Esc vuelve al partido o abre el menú. Al cambiar de pestaña o de ventana se sueltan todas las teclas.
+- **Física** (`shared/src/games/cancha-rapida/physics.ts`, pura y determinista): cancha de 1040×480 (algo mayor que la clásica de HaxBall, para 4 por equipo); discos que aceleran, frenan por rozamiento y chocan (jugadores, balón y postes). El balón rebota en las líneas salvo por la boca de las porterías, donde lo contiene la red; es gol cuando cruza la línea entero. El autor es el último que lo tocó (autogol si era del otro equipo).
+- **Tiempo real**:
+  - El servidor es la autoridad: simula a 60 pasos por segundo y envía una instantánea compacta (`match:snapshot`, enteros en arrays: unos 150 B con dos jugadores y menos de 300 B con ocho) 30 veces por segundo como mensaje volátil (si un cliente va atrasado se descarta, no se acumula).
+  - El cliente solo manda sus teclas como máscara de bits (`input`) cuando cambian.
+  - Los demás jugadores y el balón se dibujan interpolados un poco en el pasado (80–250 ms según el ping, medido con `time:sync`). El jugador propio se predice al instante con la misma física y se corrige poco a poco hacia la posición del servidor.
+- **Coste**: `/health` muestra los partidos en curso y el tiempo medio de cada paso de simulación (`tickMs`, unas centésimas de milisegundo). Una sala llena (8 jugadores) envía unos 65 KB/s; con dos, unos 10 KB/s.

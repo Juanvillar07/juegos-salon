@@ -32,6 +32,15 @@ export const GAMES: GameEntry[] = [
     players: '1–8 jugadores',
     tags: ['Multijugador', 'Vocabulario', 'Chat'],
   },
+  {
+    id: 'cancha-rapida',
+    name: 'Cancha Rápida',
+    tagline: 'Fútbol en tiempo real',
+    description: 'Rojos contra azules en una cancha vista desde arriba: muévete con el teclado, patea y mete más goles.',
+    path: '/cancha-rapida',
+    players: '1–8 jugadores',
+    tags: ['Multijugador', 'Equipos', 'Chat'],
+  },
 ];
 
 /** Juego al que pertenece una ruta (para la cabecera). */
