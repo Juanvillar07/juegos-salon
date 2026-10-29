@@ -50,6 +50,12 @@ describe('partido', () => {
     expect(m.clockMs).toBe(clock);
     expect(m.world.ball).toMatchObject({ x: 0, y: 0 });
     expect(m.world.players.find((p) => p.id === 'a')!.x).toBeLessThan(0);
+    // Saca el equipo que recibió el gol.
+    expect(m.world.kickoff).toBe('blue');
+  });
+
+  it('el primer saque es del rojo', () => {
+    expect(match().world.kickoff).toBe('red');
   });
 
   it('en propia puerta cuenta como autogol', () => {

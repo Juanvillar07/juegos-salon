@@ -6,7 +6,14 @@ import { Predictor } from './prediction';
 
 function frame(tick: number, serverTime: number, x: number): Frame {
   const disc = { x, y: 0, vx: 1, vy: 0 };
-  return { tick, serverTime, clockMs: tick * TICK_MS, ball: disc, players: new Map([[0, { ...disc, kicking: false }]]) };
+  return {
+    tick,
+    serverTime,
+    clockMs: tick * TICK_MS,
+    kickoff: null,
+    ball: disc,
+    players: new Map([[0, { ...disc, kicking: false }]]),
+  };
 }
 
 describe('interpolación', () => {

@@ -1,4 +1,4 @@
-import { TICK_MS, type Disc, type Frame, type PlayerFrame } from '@typeracer/shared/cancha-rapida';
+import { TICK_MS, type Disc, type Frame, type PlayerFrame, type Side } from '@typeracer/shared/cancha-rapida';
 
 /**
  * Interpolación de instantáneas: la cancha se dibuja un poco en el pasado, entre las dos
@@ -15,6 +15,8 @@ export interface View {
   ball: Disc;
   players: Map<number, PlayerFrame>;
   clockMs: number;
+  /** Equipo que saca (de la instantánea más reciente de las dos). */
+  kickoff: Side | null;
 }
 
 export class FrameBuffer {
@@ -58,13 +60,18 @@ export function viewAt(frames: Frame[], time: number): View | null {
     const pa = a.players.get(slot);
     players.set(slot, pa ? { ...mix(pa, pb, f), kicking: pb.kicking } : pb);
   }
-  return { ball: mix(a.ball, b.ball, f), players, clockMs: a.clockMs + (b.clockMs - a.clockMs) * f };
+  return {
+    ball: mix(a.ball, b.ball, f),
+    players,
+    clockMs: a.clockMs + (b.clockMs - a.clockMs) * f,
+    kickoff: b.kickoff,
+  };
 }
 
 function frameView(frame: Frame, extrapolateMs: number): View {
   const players = new Map<number, PlayerFrame>();
   for (const [slot, p] of frame.players) players.set(slot, { ...project(p, extrapolateMs), kicking: p.kicking });
-  return { ball: project(frame.ball, extrapolateMs), players, clockMs: frame.clockMs };
+  return { ball: project(frame.ball, extrapolateMs), players, clockMs: frame.clockMs, kickoff: frame.kickoff };
 }
 
 function mix(a: Disc, b: Disc, f: number): Disc {
