@@ -1,0 +1,68 @@
+/* El balón que rueda por la línea de la portada (en lugar del auto de los otros juegos). */
+.rollingBall {
+  display: block;
+  width: 22px;
+  height: 22px;
+  margin-bottom: 2px;
+  border-radius: 50%;
+  border: 2px solid var(--text);
+  background: var(--surface);
+  animation: roll 1s linear infinite;
+}
+
+@keyframes roll {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.controls {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+
+.controls li {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  align-items: center;
+  gap: 12px;
+}
+
+.controls strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.keys {
+  display: flex;
+  gap: 4px;
+}
+
+.keys kbd {
+  min-width: 26px;
+  padding: 3px 6px;
+  border: 1px solid var(--border-strong);
+  border-bottom-width: 2px;
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.78rem;
+  text-align: center;
+}
+
+.keys .wide {
+  min-width: 56px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rollingBall {
+    animation: none;
+  }
+}

@@ -1,0 +1,173 @@
+/* La cancha y el chat caben justo en la ventana: la cancha toma todo el espacio que haya
+   (el chat es estrecho para dejarle el máximo de ancho). */
+.match {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 260px;
+  gap: 20px;
+  height: calc(100dvh - 76px - 44px);
+  min-height: 420px;
+}
+
+.stage {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+}
+
+.scoreboard {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.team {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.score {
+  font-size: 1.9rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.dash {
+  color: var(--subtle);
+  font-weight: 400;
+}
+
+.clock {
+  margin-left: auto;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.hurry {
+  color: var(--bad);
+}
+
+.menuButton {
+  padding: 7px 12px;
+  font-size: 0.85rem;
+}
+
+.field {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.pitchWrap {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+
+.canvas {
+  display: block;
+  border-radius: var(--radius-sm);
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.overlay:has(.menu) {
+  pointer-events: auto;
+  background: color-mix(in srgb, var(--bg) 55%, transparent);
+}
+
+.countdown {
+  font-size: 6rem;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 4px 24px rgba(0, 0, 0, 0.45);
+  animation: pop var(--duration-medium) var(--ease-smooth-out);
+}
+
+.goal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 18px 34px;
+  border-radius: var(--radius);
+  background: rgba(15, 15, 17, 0.78);
+  animation: pop var(--duration-medium) var(--ease-smooth-out);
+}
+
+.goal strong {
+  font-size: 3.4rem;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.goal span {
+  color: #fff;
+  font-size: 0.95rem;
+}
+
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(280px, 90%);
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  animation: pop var(--duration-fast) var(--ease-smooth-out);
+}
+
+.danger {
+  color: var(--bad);
+  border-color: color-mix(in srgb, var(--bad) 45%, transparent);
+}
+
+.hint {
+  font-size: 0.8rem;
+  color: var(--muted);
+  text-align: center;
+}
+
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+}
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: scale(var(--scale-medium));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .countdown,
+  .goal,
+  .menu {
+    animation: none;
+  }
+}
+
+@media (max-width: 1000px) {
+  .match {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(300px, 1fr) 220px;
+  }
+}

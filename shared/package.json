@@ -13,6 +13,10 @@
     "./carrera-de-silabas": {
       "types": "./dist/games/carrera-de-silabas/index.d.ts",
       "default": "./dist/games/carrera-de-silabas/index.js"
+    },
+    "./cancha-rapida": {
+      "types": "./dist/games/cancha-rapida/index.d.ts",
+      "default": "./dist/games/cancha-rapida/index.js"
     }
   },
   "scripts": {
