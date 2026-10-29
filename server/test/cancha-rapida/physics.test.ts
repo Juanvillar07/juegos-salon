@@ -120,6 +120,7 @@ describe('física de la cancha', () => {
       { id: 'b', team: 'blue' },
     ]);
     Object.assign(w.ball, { x: 300, y: 150 });
+    w.kickoff = null;
     Object.assign(w.players[0], { x: -20, y: 0, vx: 2, vy: 0 });
     Object.assign(w.players[1], { x: 12, y: 0, vx: -1, vy: 0 });
     const before = w.players[0].vx + w.players[1].vx;
@@ -139,9 +140,64 @@ describe('física de la cancha', () => {
       { id: 'c', team: 'red' },
     ]);
     Object.assign(w.ball, { x: 100, vx: 3 });
-    resetKickoff(w);
+    resetKickoff(w, 'blue');
     expect(w.ball).toEqual({ x: 0, y: 0, vx: 0, vy: 0 });
+    expect(w.kickoff).toBe('blue');
     expect(w.players.filter((p) => p.team === 'red').every((p) => p.x < 0)).toBe(true);
     expect(w.players.find((p) => p.team === 'blue')!.x).toBeGreaterThan(0);
+  });
+
+  describe('saque', () => {
+    function kickoffWorld() {
+      const w = createWorld([
+        { id: 'r', team: 'red' },
+        { id: 'b', team: 'blue' },
+      ]);
+      expect(w.kickoff).toBe('red');
+      return w;
+    }
+
+    it('el rival no cruza la línea de medio campo ni entra en el círculo central', () => {
+      const w = kickoffWorld();
+      const blue = w.players.find((p) => p.id === 'b')!;
+      setKeys(blue, KEY.left);
+      steps(w, 200);
+      expect(Math.hypot(blue.x, blue.y)).toBeGreaterThanOrEqual(FIELD.centerRadius + PLAYER.radius - 0.001);
+      expect(blue.x).toBeGreaterThanOrEqual(PLAYER.radius - 0.001);
+      expect(w.kickoff).toBe('red');
+    });
+
+    it('el que saca puede entrar en el círculo y tocar el balón, y entonces el juego queda libre', () => {
+      const w = kickoffWorld();
+      const red = w.players.find((p) => p.id === 'r')!;
+      setKeys(red, KEY.right);
+      let n = 0;
+      while (w.kickoff && n++ < 300) stepWorld(w);
+      expect(w.kickoff).toBeNull();
+      expect(w.lastTouch).toBe('r');
+      // Ya en juego libre, el rival puede cruzar la línea.
+      const blue = w.players.find((p) => p.id === 'b')!;
+      setKeys(red, 0);
+      setKeys(blue, KEY.left);
+      Object.assign(blue, { y: -200 });
+      steps(w, 300);
+      expect(blue.x).toBeLessThan(0);
+    });
+
+    it('el que saca no pasa la línea fuera del círculo', () => {
+      const w = kickoffWorld();
+      const red = w.players.find((p) => p.id === 'r')!;
+      Object.assign(red, { x: -200, y: 160 });
+      setKeys(red, KEY.right);
+      steps(w, 200);
+      expect(red.x).toBeLessThanOrEqual(-PLAYER.radius + 0.001);
+      expect(w.kickoff).toBe('red');
+    });
+
+    it('si el equipo que saca no tiene jugadores, se juega libre', () => {
+      const w = createWorld([{ id: 'r', team: 'red' }]);
+      resetKickoff(w, 'blue');
+      expect(w.kickoff).toBeNull();
+    });
   });
 });

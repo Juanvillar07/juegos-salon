@@ -1,4 +1,4 @@
-import { KEY, type Disc, type World } from './physics.js';
+import { KEY, type Disc, type Side, type World } from './physics.js';
 
 /**
  * Instantánea compacta de la cancha (30 por segundo): enteros en arrays en lugar de objetos,
@@ -11,6 +11,8 @@ export interface SnapshotPayload {
   t: number;
   /** Tiempo de juego transcurrido (ms), sin contar la cuenta atrás ni las pausas de gol. */
   c: number;
+  /** Saque pendiente: 0 = juego libre, 1 = saca rojo, 2 = saca azul. */
+  o: number;
   /** Balón: [x, y, vx, vy]. */
   b: number[];
   /** Jugadores: [puesto, x, y, vx, vy, banderas]. */
@@ -30,6 +32,8 @@ export interface Frame {
   tick: number;
   serverTime: number;
   clockMs: number;
+  /** Equipo que tiene que sacar (la barrera del saque está activa); null = juego libre. */
+  kickoff: Side | null;
   ball: Disc;
   /** Por puesto (`PlayerInfo.slot`). */
   players: Map<number, PlayerFrame>;
@@ -47,6 +51,7 @@ export function encodeSnapshot(
     k: tick,
     t: serverTime,
     c: Math.round(clockMs),
+    o: world.kickoff === 'red' ? 1 : world.kickoff === 'blue' ? 2 : 0,
     b: disc(world.ball),
     p: world.players.map((p) => [slots.get(p.id) ?? -1, ...disc(p), p.keys & KEY.kick ? FLAG_KICKING : 0]),
   };
@@ -58,6 +63,7 @@ export function decodeSnapshot(s: SnapshotPayload): Frame {
     tick: s.k,
     serverTime: s.t,
     clockMs: s.c,
+    kickoff: s.o === 1 ? 'red' : s.o === 2 ? 'blue' : null,
     ball: disc(s.b),
     players: new Map(s.p.map(([slot, ...rest]) => [slot, { ...disc(rest), kicking: (rest[4] & FLAG_KICKING) !== 0 }])),
   };

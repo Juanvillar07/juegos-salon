@@ -45,6 +45,8 @@ export class Match {
   private frozen: number;
   /** Pasos que quedan de celebración tras un gol (la jugada sigue, pero no cuenta). */
   private celebrating = 0;
+  /** Equipo que recibió el último gol: saca al volver al centro. */
+  private nextKickoff: Side = 'red';
   private readonly limitTicks: number;
 
   constructor(
@@ -93,7 +95,7 @@ export class Match {
       this.celebrating--;
       if (this.celebrating > 0) return {};
       if (this.scoreLimitReached()) return this.end();
-      resetKickoff(this.world);
+      resetKickoff(this.world, this.nextKickoff);
       return {};
     }
 
@@ -115,6 +117,7 @@ export class Match {
     };
     this.score[team]++;
     this.goals.push(goal);
+    this.nextKickoff = team === 'red' ? 'blue' : 'red';
     this.celebrating = Math.round(GOAL_PAUSE_MS / TICK_MS);
     return goal;
   }

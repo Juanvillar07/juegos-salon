@@ -5,6 +5,7 @@ import {
   POSTS,
   POST_RADIUS,
   TEAM_COLORS,
+  TEAM_NAMES,
   type Disc,
   type Side,
 } from '@typeracer/shared/cancha-rapida';
@@ -41,6 +42,7 @@ export function drawPitch(
 
   drawField(ctx);
   if (!view) return;
+  if (view.kickoff) drawKickoff(ctx, view.kickoff);
 
   for (const [slot, p] of view.players) {
     const info = players.get(slot);
@@ -82,6 +84,25 @@ function drawField(ctx: CanvasRenderingContext2D): void {
     ctx.stroke();
   }
   for (const post of POSTS) drawDisc(ctx, { ...post, vx: 0, vy: 0 }, POST_RADIUS, PITCH.post, 2);
+}
+
+/** Saque pendiente: el círculo central toma el color del equipo que saca, con su nombre debajo. */
+function drawKickoff(ctx: CanvasRenderingContext2D, team: Side): void {
+  ctx.beginPath();
+  ctx.arc(0, 0, FIELD.centerRadius, 0, Math.PI * 2);
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = TEAM_COLORS[team];
+  ctx.stroke();
+  const label = `SACA ${TEAM_NAMES[team].toUpperCase()}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = '700 13px system-ui, sans-serif';
+  // Contorno oscuro: el rótulo cae sobre la línea de medio campo y así se lee igual.
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = 'rgba(21, 21, 23, 0.6)';
+  ctx.strokeText(label, 0, FIELD.centerRadius + 18);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillText(label, 0, FIELD.centerRadius + 18);
 }
 
 function drawDisc(ctx: CanvasRenderingContext2D, d: Disc, radius: number, fill: string, outline: number): void {

@@ -75,6 +75,11 @@ export interface World {
   players: PlayerBody[];
   /** Último jugador que tocó el balón: el autor del gol. */
   lastTouch: string | null;
+  /**
+   * Equipo que saca, hasta que toca el balón. Mientras tanto nadie cruza la línea de medio campo
+   * y el rival no puede entrar en el círculo central. null = juego libre.
+   */
+  kickoff: Side | null;
 }
 
 /** Postes de las porterías: discos fijos en las esquinas de cada boca. */
@@ -93,20 +98,26 @@ const KICKOFF_SPOTS: readonly [number, number][] = [
   [-430, 0],
 ];
 
+/** El primer saque del partido es del equipo rojo. */
 export function createWorld(players: { id: string; team: Side }[]): World {
   const world: World = {
     ball: { x: 0, y: 0, vx: 0, vy: 0 },
     players: players.map((p) => ({ id: p.id, team: p.team, x: 0, y: 0, vx: 0, vy: 0, keys: 0, kickArmed: false })),
     lastTouch: null,
+    kickoff: null,
   };
-  resetKickoff(world);
+  resetKickoff(world, 'red');
   return world;
 }
 
-/** Coloca a todos en sus puestos de saque y el balón en el centro, quietos. */
-export function resetKickoff(world: World): void {
+/**
+ * Coloca a todos en sus puestos de saque y el balón en el centro, quietos, con el saque para
+ * `kickoff`. Si ese equipo no tiene a nadie en la cancha (alguien practicando solo), juego libre.
+ */
+export function resetKickoff(world: World, kickoff: Side): void {
   Object.assign(world.ball, { x: 0, y: 0, vx: 0, vy: 0 });
   world.lastTouch = null;
+  world.kickoff = world.players.some((p) => p.team === kickoff) ? kickoff : null;
   for (const team of ['red', 'blue'] as const) {
     const mirror = team === 'red' ? 1 : -1;
     world.players
@@ -152,18 +163,28 @@ export function stepWorld(world: World): void {
     for (const p of players) collide(fixed, p, 0, PLAYER.invMass, POST_RADIUS + PLAYER.radius, PLAYER.bounce);
   }
 
+  // El saque termina en cuanto alguien toca el balón (solo puede el equipo que saca), o si
+  // ese equipo se quedó sin jugadores.
+  if (world.kickoff && (world.lastTouch !== null || !players.some((p) => p.team === world.kickoff))) {
+    world.kickoff = null;
+  }
+
   constrainBall(ball);
-  for (const p of players) constrainPlayer(p);
+  for (const p of players) {
+    constrainPlayer(p);
+    if (world.kickoff) kickoffBarrier(p, world.kickoff);
+  }
 }
 
 /**
  * Paso de un jugador solo (sin choques): lo usa el cliente para que su propio jugador responda
- * al instante, antes de que llegue la posición del servidor.
+ * al instante, antes de que llegue la posición del servidor. Respeta la barrera del saque.
  */
-export function stepLonePlayer(player: PlayerBody): void {
+export function stepLonePlayer(player: PlayerBody, kickoff: Side | null = null): void {
   accelerate(player);
   move(player, PLAYER.damping);
   constrainPlayer(player);
+  if (kickoff) kickoffBarrier(player, kickoff);
 }
 
 /** Gol si el balón cruzó entero la línea dentro de una portería: anota el equipo que atacaba ese lado. */
@@ -267,6 +288,52 @@ function constrainBall(b: Disc): void {
   if (Math.abs(b.y) > G && Math.abs(b.x) > W - r) {
     b.x = side * (W - r);
     if (b.vx * side > 0) b.vx = -b.vx * bounce;
+  }
+}
+
+/**
+ * Barrera del saque: cada uno se queda en su mitad; el equipo que saca puede entrar en el
+ * círculo central (para llegar al balón) y el rival no.
+ */
+function kickoffBarrier(p: PlayerBody, kicking: Side): void {
+  const r = PLAYER.radius;
+  const R = FIELD.centerRadius;
+  // Lado propio: los rojos defienden la izquierda (x negativa) y los azules la derecha.
+  const own = p.team === 'red' ? -1 : 1;
+  const dist = Math.hypot(p.x, p.y);
+  const intrudes = p.x * own < r;
+
+  if (p.team !== kicking) {
+    if (intrudes) {
+      p.x = own * r;
+      if (p.vx * own < 0) p.vx = 0;
+    }
+    const d = Math.hypot(p.x, p.y);
+    if (d < R + r) pushRadially(p, d, R + r, own);
+    return;
+  }
+  // El que saca solo puede pasar la línea dentro del círculo.
+  if (!intrudes || dist <= R - r) return;
+  if (Math.abs(p.y) < R) {
+    pushRadially(p, dist, R - r, own);
+  } else {
+    p.x = own * r;
+    if (p.vx * own < 0) p.vx = 0;
+  }
+}
+
+/** Lleva el disco a `radius` del centro por la misma recta y quita la velocidad hacia fuera de ella. */
+function pushRadially(p: Disc, dist: number, radius: number, fallbackSide: number): void {
+  const nx = dist > 0 ? p.x / dist : fallbackSide;
+  const ny = dist > 0 ? p.y / dist : 0;
+  p.x = nx * radius;
+  p.y = ny * radius;
+  const radial = p.vx * nx + p.vy * ny;
+  // Hacia fuera si está dentro del círculo y debía salir, hacia dentro si debía quedarse en él.
+  const wrongWay = radius > dist ? radial < 0 : radial > 0;
+  if (wrongWay) {
+    p.vx -= radial * nx;
+    p.vy -= radial * ny;
   }
 }
 

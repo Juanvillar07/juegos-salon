@@ -81,7 +81,7 @@ export default function Pitch({ room, myId, keys }: Props) {
       if (latest && serverMe && me && me.team !== 'spectator') {
         predictor ??= new Predictor(myId, me.team, serverMe);
         // Durante la cuenta atrás la cancha está quieta: no se predice movimiento.
-        if (current.startAt === null || sNow >= current.startAt) predictor.advance(elapsed, keys.current);
+        if (current.startAt === null || sNow >= current.startAt) predictor.advance(elapsed, keys.current, latest.kickoff);
         // El servidor aplicará mis teclas de ahora dentro de medio viaje: se proyecta hasta ahí.
         const ahead = Math.min(MAX_AHEAD_MS, sNow + clock.roundTrip / 2 - latest.serverTime);
         predictor.correct(project(serverMe, ahead), elapsed);
