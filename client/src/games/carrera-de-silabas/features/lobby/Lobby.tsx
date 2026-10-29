@@ -5,13 +5,12 @@ import StatusTag from '../../../rally-de-letras/components/StatusTag';
 import CarSprite from '../../../rally-de-letras/components/cars/CarSprite';
 import ScoreTrack from '../../components/ScoreTrack';
 import { saveCarChoice, type CarChoice } from '../../lib/storage';
-import { customizeCar, kickPlayer, setRoomPassword } from '../../state/store';
-import InvitePanel from '../../../../shell/InvitePanel';
+import { customizeCar, kickPlayer } from '../../state/store';
+import CopyLinkButton from '../../../../shell/CopyLinkButton';
 import KickButton from '../../../../shell/KickButton';
-import RoomPasswordField from '../../../../shell/RoomPasswordField';
-import { LockIcon } from '../../../../shell/icons';
 import Chat from '../chat/Chat';
 import { roomPath } from '../../routes';
+import HowToPlay from './HowToPlay';
 import RaceInProgress from './RaceInProgress';
 import RoomSettingsPanel from './RoomSettingsPanel';
 import StartPanel from './StartPanel';
@@ -42,16 +41,9 @@ export default function Lobby({ room, myId, isHost }: Props) {
         <header className={styles.head}>
           <div>
             <span className="label">Sala</span>
-            <h1 className={`${styles.code} num`}>
-              {room.code}
-              {room.locked && (
-                <span className={styles.lock} title="Sala con contraseña" aria-label="Sala con contraseña">
-                  <LockIcon />
-                </span>
-              )}
-            </h1>
+            <h1 className={`${styles.code} num`}>{room.code}</h1>
           </div>
-          <InvitePanel link={link} code={room.code} gameName="Carrera de Sílabas" locked={room.locked} />
+          <CopyLinkButton link={link} />
         </header>
 
         {racing ? (
@@ -101,26 +93,26 @@ export default function Lobby({ room, myId, isHost }: Props) {
           </section>
         )}
 
+        {!racing && (
+          <section className={styles.section}>
+            <div className={styles.sectionHead}>
+              <span className="label">Cómo se juega</span>
+            </div>
+            <HowToPlay settings={room.settings} />
+          </section>
+        )}
+
         <section className={styles.section}>
           <div className={styles.sectionHead}>
-            <span className="label">Meta de la carrera</span>
+            <span className="label">Ajustes de la carrera</span>
             {!isHost ? (
-              <span className="muted">La elige el host</span>
+              <span className="muted">Los elige el host</span>
             ) : (
-              racing && <span className="muted">Se cambia al terminar la carrera</span>
+              racing && <span className="muted">Se cambian al terminar la carrera</span>
             )}
           </div>
           <RoomSettingsPanel settings={room.settings} isHost={isHost && !racing} />
         </section>
-
-        {isHost && (
-          <section className={styles.section}>
-            <div className={styles.sectionHead}>
-              <span className="label">Contraseña de la sala</span>
-            </div>
-            <RoomPasswordField locked={room.locked} save={setRoomPassword} />
-          </section>
-        )}
       </div>
 
       <aside className={styles.side}>

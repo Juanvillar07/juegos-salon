@@ -17,13 +17,11 @@ import {
   DEFAULT_SETTINGS,
   MAX_WORD_LENGTH,
   MIN_WORD_LENGTH,
-  SKIP_BLOCK_MS,
-  SKIP_POINTS,
   SUBMIT_COOLDOWN_MS,
   checkWordShape,
   normalizeWord,
   validateTarget,
-  validateSkipPenalty,
+  validateSkipPoints,
   validateTimeLimit,
   wordPoints,
   type PlayerProgress,
@@ -31,14 +29,12 @@ import {
   type RoomSettings,
   type RoomState,
 } from '@typeracer/shared/carrera-de-silabas';
-import { PASSWORD_ATTEMPTS_PER_MINUTE, normalizeRoomPassword } from '@typeracer/shared';
 import { generateRoomCode, normalizeRoomCode } from '../../../common/roomCode.js';
 import { computeResults } from './results.js';
 import {
   isActive,
   isRacing,
   type AutoStartDecision,
-  type JoinResult,
   type LeaveResult,
   type RaceOutcome,
   type Player,
@@ -132,16 +128,14 @@ export class RoomManager {
       chat: [],
       chatSeq: 0,
       autoStartAt: null,
-      password: null,
       banned: new Set(),
-      failedJoins: new Map(),
     };
     this.rooms.set(code, room);
     this.addPlayer(room, playerId, name, prefs);
     return { ok: true, room };
   }
 
-  joinRoom(code: string, playerId: string, nickname: string, prefs: CarPrefs = {}, password?: unknown): JoinResult {
+  joinRoom(code: string, playerId: string, nickname: string, prefs: CarPrefs = {}): Result<{ room: Room }> {
     const name = cleanNickname(nickname);
     if (!name) return { ok: false, error: 'El nickname no puede estar vacío' };
     const room = this.getRoom(code);
@@ -155,10 +149,6 @@ export class RoomManager {
     }
     if (current) return { ok: false, error: 'Ya estás en otra sala' };
     if (room.banned.has(playerId)) return { ok: false, error: 'El host te expulsó de esta sala' };
-    if (room.password !== null) {
-      const denied = this.checkPassword(room, playerId, password);
-      if (denied) return denied;
-    }
 
     if (room.phase === 'racing') return { ok: false, error: 'La carrera ya empezó, espera a que termine' };
     const active = [...room.players.values()].filter(isActive).length;
@@ -185,39 +175,6 @@ export class RoomManager {
     }
     if (prefs.car) player.car = prefs.car;
     if (prefs.color) player.color = prefs.color;
-    return { ok: true, room };
-  }
-
-  /** Contraseña al entrar: null si es correcta; si no, el error (con un tope de intentos por minuto). */
-  private checkPassword(room: Room, playerId: string, password: unknown): JoinResult | null {
-    const now = this.now();
-    const recent = (room.failedJoins.get(playerId) ?? []).filter((t) => now - t < 60_000);
-    if (recent.length >= PASSWORD_ATTEMPTS_PER_MINUTE) {
-      return { ok: false, error: 'Demasiados intentos: espera un minuto', needsPassword: true };
-    }
-    if (typeof password !== 'string' || password.trim() === '') {
-      return { ok: false, error: 'Esta sala tiene contraseña', needsPassword: true };
-    }
-    if (password.trim() === room.password) {
-      room.failedJoins.delete(playerId);
-      return null;
-    }
-    room.failedJoins.set(playerId, [...recent, now]);
-    return { ok: false, error: 'Contraseña incorrecta', needsPassword: true };
-  }
-
-  /** Pone o quita (null) la contraseña de la sala. Solo el host. */
-  setPassword(playerId: string, raw: unknown): Result<{ room: Room }> {
-    const room = this.getRoomOfPlayer(playerId);
-    if (!room) return { ok: false, error: 'No estás en ninguna sala' };
-    if (room.hostId !== playerId) return { ok: false, error: 'Solo el host puede cambiar la contraseña' };
-    if (raw === null) {
-      room.password = null;
-      return { ok: true, room };
-    }
-    const res = normalizeRoomPassword(raw);
-    if (!res.ok) return res;
-    room.password = res.password;
     return { ok: true, room };
   }
 
@@ -333,10 +290,10 @@ export class RoomManager {
       if (error) return { ok: false, error };
       next.timeLimitSec = patch.timeLimitSec;
     }
-    if (patch.skipPenalty !== undefined) {
-      const error = validateSkipPenalty(patch.skipPenalty);
+    if (patch.skipPoints !== undefined) {
+      const error = validateSkipPoints(patch.skipPoints);
       if (error) return { ok: false, error };
-      next.skipPenalty = patch.skipPenalty;
+      next.skipPoints = patch.skipPoints;
     }
     room.settings = next;
     return { ok: true, room };
@@ -428,9 +385,6 @@ export class RoomManager {
     if (now < room.startAt) return { accepted: false, error: 'Espera la salida' };
     if (player.retired) return { accepted: false, error: 'Volviste a la sala' };
     if (player.position !== null) return { accepted: false, error: 'Ya llegaste a la meta' };
-    if (player.blockedUntil !== null && now < player.blockedUntil) {
-      return { accepted: false, error: `Espera ${Math.ceil((player.blockedUntil - now) / 1000)} s` };
-    }
     if (player.lastWordAt !== null && now - player.lastWordAt < SUBMIT_COOLDOWN_MS) {
       return { accepted: false, error: 'Más despacio' };
     }
@@ -465,8 +419,8 @@ export class RoomManager {
   }
 
   /**
-   * Pasa a la siguiente sílaba pagando la penalización de la sala: puntos (sin bajar de 0),
-   * unos segundos sin poder escribir, o ambas cosas.
+   * Pasa a la siguiente sílaba pagando los puntos que fije la sala (sin bajar de 0; puede ser gratis).
+   * Comparte la espera mínima con las palabras, para que no se pueda pasar en ráfaga.
    */
   skipSyllable(playerId: string): Result<{ room: Room; player: Player }> {
     const room = this.getRoomOfPlayer(playerId);
@@ -477,13 +431,12 @@ export class RoomManager {
     if (now < room.startAt) return { ok: false, error: 'Espera la salida' };
     if (player.retired) return { ok: false, error: 'Volviste a la sala' };
     if (player.position !== null) return { ok: false, error: 'Ya llegaste a la meta' };
-    if (player.blockedUntil !== null && now < player.blockedUntil) {
-      return { ok: false, error: `Espera ${Math.ceil((player.blockedUntil - now) / 1000)} s` };
+    if (player.lastWordAt !== null && now - player.lastWordAt < SUBMIT_COOLDOWN_MS) {
+      return { ok: false, error: 'Más despacio' };
     }
+    player.lastWordAt = now;
 
-    const { skipPenalty } = room.settings;
-    if (skipPenalty !== 'time') player.score = Math.max(0, player.score - SKIP_POINTS);
-    player.blockedUntil = skipPenalty !== 'points' ? now + SKIP_BLOCK_MS : null;
+    player.score = Math.max(0, player.score - room.settings.skipPoints);
     player.syllableIndex++;
     player.skips++;
     return { ok: true, room, player };
@@ -598,7 +551,6 @@ export class RoomManager {
       results: room.results,
       settings: room.settings,
       autoStartAt: room.autoStartAt,
-      locked: room.password !== null,
     };
   }
 
@@ -629,7 +581,6 @@ export class RoomManager {
       retired: false,
       plays: [],
       skips: 0,
-      blockedUntil: null,
       lastWordAt: null,
       lastChatAt: null,
     });
@@ -647,7 +598,6 @@ function resetPlayerRace(p: Player): void {
   p.retired = false;
   p.plays = [];
   p.skips = 0;
-  p.blockedUntil = null;
   p.lastWordAt = null;
   p.ready = false;
 }

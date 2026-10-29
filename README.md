@@ -164,13 +164,9 @@ Socket.IO funciona sobre WebSockets en ambos servicios sin configuración extra.
 - Cada pestaña guarda en `sessionStorage` un `sessionId` secreto que manda al conectar. Así, al **recargar la página** el servidor reconoce al jugador y le devuelve su lugar (incluido el progreso si estaba en plena carrera).
 - Si un jugador pierde la conexión, se muestra como "reconectando…" y el servidor le guarda el lugar 15 s (`RECONNECT_GRACE_MS`). Si no vuelve, sale de la sala: en plena carrera queda como "desconectado", y si era host, el host pasa al siguiente jugador. Las salas sin jugadores se eliminan.
 - Abrir la misma sesión en otra pestaña (p. ej. "Duplicar pestaña") reemplaza a la anterior.
-- **Invitar** (los dos juegos): desde el lobby se copia el enlace, se comparte por WhatsApp o se muestra un QR para quien está al lado. El enlace y el QR nunca llevan la contraseña.
+- **Invitar** (los dos juegos): desde el lobby se copia el enlace de la sala.
 - **Expulsar** (`room:kick`, solo el host): el expulsado recibe `room:kicked`, sale de la sala y no puede volver a entrar mientras exista.
-- **Contraseña** (`room:password`, solo el host):
-  - Solo vive en el servidor; el estado solo indica `locked`.
-  - Para entrar hay que darla en `room:join`. Si falta o no coincide, la respuesta trae `needsPassword` y el cliente la pide.
-  - Como máximo 5 intentos fallidos por jugador y minuto.
-  - Quien ya estaba dentro (p. ej. al recargar) no la necesita.
+- **Aviso de salida** (los dos juegos): si al empezar la cuenta atrás la pestaña no está a la vista, su título parpadea con "¡Arranca!" y suenan dos pitidos (si el navegador deja reproducir sonido). Al volver a la pestaña, el título se restaura.
 
 ## Reglas de Carrera de Sílabas
 
@@ -180,9 +176,7 @@ Salas, listos, chat, salir de la carrera (volver a la sala, salir o cancelar), a
 - **Sílabas**: al empezar, el servidor sortea una secuencia de sílabas (de 2 o 3 letras, con vocal, que aparecen en al menos 3000 palabras del diccionario) que es la misma para todos. Cada jugador avanza por ella a su ritmo: al acertar pasa a la siguiente.
 - **Palabras** (`race:word`, con respuesta): se pasan a minúsculas y sin tildes (la ñ se respeta) y deben tener solo letras, entre 3 y 30, contener la sílaba actual, estar en el diccionario y no haberse usado antes en la carrera. Cada palabra aceptada suma un punto por letra. Hay un mínimo de 0,3 s entre intentos.
 - **Diccionario**: el paquete [`an-array-of-spanish-words`](https://github.com/words/an-array-of-spanish-words) (MIT, ~636 000 palabras con conjugaciones), cargado una sola vez al arrancar el servidor (unos 50 MB de memoria). No se envía al navegador.
-- **Pasar de sílaba** (`race:skip`, botón o Shift+Enter): salta la sílaba actual pagando la penalización que elige el host, que puede ser una de estas:
-  - −5 puntos, sin bajar de 0;
-  - 3 segundos sin poder escribir (por defecto);
-  - ambas.
+- **Pasar de sílaba** (`race:skip`, botón o Shift+Enter): salta la sílaba actual. El host elige si cuesta puntos: sin penalización, −3, −5 (por defecto) o −10, sin bajar de 0. Comparte con las palabras el mínimo de 0,3 s entre intentos.
 - Todos ven el avance de los demás en la pista (puntos y palabras acertadas), pero no qué palabras escribieron: el servidor nunca envía las palabras ajenas durante la carrera, para que nadie pueda copiarlas.
+- **Cómo se juega**: el lobby resume las reglas en una línea con un ejemplo (palabras más largas dan más puntos). "Ver reglas" abre el detalle con la meta, el tiempo y el coste de pasar que eligió el host.
 - **Palabras al final**: los resultados traen las palabras de cada piloto, con la sílaba que resolvió cada una, y cuántas sílabas pasó.

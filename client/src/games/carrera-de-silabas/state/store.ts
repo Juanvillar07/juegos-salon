@@ -3,7 +3,6 @@ import type { CarPrefs, ChatMessage } from '@typeracer/shared';
 import type {
   Ack,
   CreateAck,
-  JoinAck,
   RoomSettings,
   RoomSnapshot,
   RoomState,
@@ -11,6 +10,7 @@ import type {
   WordAck,
 } from '@typeracer/shared/carrera-de-silabas';
 import { ordinal } from '../../rally-de-letras/lib/format';
+import { alertRaceStart } from '../../../shell/raceAlert';
 import { socket } from '../lib/socket';
 import { getCarChoice, setSessionId } from '../lib/storage';
 
@@ -79,9 +79,8 @@ export function createRoom(nickname: string): Promise<CreateAck> {
   return new Promise((resolve) => socket.emit('room:create', { nickname, ...getCarChoice() }, resolve));
 }
 
-/** `password` solo si la sala la pide (la respuesta trae needsPassword si falta o no coincide). */
-export function joinRoom(code: string, nickname: string, password?: string): Promise<JoinAck> {
-  return new Promise((resolve) => socket.emit('room:join', { code, nickname, password, ...getCarChoice() }, resolve));
+export function joinRoom(code: string, nickname: string): Promise<Ack> {
+  return new Promise((resolve) => socket.emit('room:join', { code, nickname, ...getCarChoice() }, resolve));
 }
 
 /** Expulsa a un jugador (host). Si el servidor lo rechaza, se muestra el error. */
@@ -92,11 +91,6 @@ export function kickPlayer(playerId: string): Promise<Ack> {
       resolve(res);
     }),
   );
-}
-
-/** Pone o quita (null) la contraseña de la sala (host). */
-export function setRoomPassword(password: string | null): Promise<Ack> {
-  return new Promise((resolve) => socket.emit('room:password', { password }, resolve));
 }
 
 /** Cambia auto/color en la sala. Si el servidor lo rechaza (color ocupado), se muestra el error. */
@@ -243,7 +237,10 @@ socket.on('chat:message', (message) => {
   if (message.kind === 'system' && state.room?.phase === 'racing' && !me?.retired) pushNotice(message.text);
 });
 
-socket.on('race:countdown', ({ serverNow: sNow }) => setState({ clockOffset: sNow - Date.now() }));
+socket.on('race:countdown', ({ serverNow: sNow }) => {
+  setState({ clockOffset: sNow - Date.now() });
+  alertRaceStart();
+});
 
 
 socket.on('race:progress', ({ players }) => {

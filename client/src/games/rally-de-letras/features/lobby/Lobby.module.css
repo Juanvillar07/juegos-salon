@@ -32,19 +32,6 @@
   margin-top: 6px;
 }
 
-/* Candado junto al código: la sala pide contraseña. */
-.lock {
-  display: inline-flex;
-  margin-left: 12px;
-  vertical-align: middle;
-  color: var(--muted);
-}
-
-.lock svg {
-  width: 0.5em;
-  height: 0.5em;
-}
-
 .section {
   display: flex;
   flex-direction: column;
@@ -135,9 +122,12 @@
   min-height: 170px;
 }
 
-/* Pantallas bajas (laptops de 768 px): se aprieta el espaciado para que el chat siga a la vista */
+/* Pantallas bajas (laptops de 768 px): se aprieta la columna lateral para que el chat siga a la
+   vista. La principal conserva su aire y, si no cabe, se desplaza por dentro. */
 @media (max-height: 820px) {
-  .main,
+  .main {
+    gap: 22px;
+  }
   .side {
     gap: 14px;
   }
@@ -153,6 +143,16 @@
   .gridCar svg {
     width: 72px;
     height: auto;
+  }
+}
+
+/* Pantallas aún más bajas (720 px): un poco menos de aire para que el lobby quepa sin desplazarse. */
+@media (max-height: 740px) {
+  .main {
+    gap: 16px;
+  }
+  .code {
+    font-size: clamp(2rem, 3.6vw, 2.6rem);
   }
 }
 

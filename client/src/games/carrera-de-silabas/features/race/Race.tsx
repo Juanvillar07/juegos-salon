@@ -43,19 +43,16 @@ export default function Race({ room, myId }: Props) {
   const [pending, setPending] = useState(false);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [confirmLeave, setConfirmLeave] = useState(false);
-  // Tras pasar con penalización de tiempo: no se puede escribir hasta entonces (reloj del servidor).
-  const [blockedUntil, setBlockedUntil] = useState<number | null>(null);
   const now = useServerClock();
   const started = now >= startAt;
-  const blocked = blockedUntil !== null && now < blockedUntil;
   const elapsed = Math.max(0, now - startAt);
   const remaining = (room.endsAt ?? startAt) - now;
   const rank = me?.position ?? liveRanking(room.players).get(myId) ?? 1;
 
   const inputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
-    if (started && !confirmLeave && !blocked) inputRef.current?.focus();
-  }, [started, confirmLeave, blocked]);
+    if (started && !confirmLeave) inputRef.current?.focus();
+  }, [started, confirmLeave]);
 
   // Esc abre/cierra la confirmación para abandonar.
   useEffect(() => {
@@ -94,16 +91,16 @@ export default function Race({ room, myId }: Props) {
     }
   };
 
-  // Pasar a la siguiente sílaba (botón o Shift+Enter), pagando la penalización de la sala.
+  // Pasar a la siguiente sílaba (botón o Shift+Enter), pagando los puntos que fije la sala.
   const skip = async () => {
-    if (!started || pending || finished || blocked) return;
+    if (!started || pending || finished) return;
     setPending(true);
     const res = await skipSyllable();
     setPending(false);
     if (!res.ok) return show(false, res.error);
     setDraft('');
-    setBlockedUntil(res.blockedUntil);
-    show(true, `Pasaste · ${skipCost(room.settings.skipPenalty)}`);
+    show(true, `Pasaste · ${skipCost(room.settings.skipPoints)}`);
+    inputRef.current?.focus();
   };
 
   // Volver a la sala: dejamos de correr pero seguimos en ella (vemos el lobby hasta que termine).
@@ -210,14 +207,8 @@ export default function Race({ room, myId }: Props) {
                       onPaste={block}
                       onDrop={block}
                       onContextMenu={block}
-                      disabled={!started || confirmLeave || blocked}
-                      placeholder={
-                        !started
-                          ? 'prepárate…'
-                          : blocked
-                            ? `puedes escribir en ${Math.ceil((blockedUntil! - now) / 1000)} s`
-                            : 'escribe y pulsa Enter'
-                      }
+                      disabled={!started || confirmLeave}
+                      placeholder={started ? 'escribe y pulsa Enter' : 'prepárate…'}
                       autoComplete="off"
                       autoCorrect="off"
                       autoCapitalize="off"
@@ -229,10 +220,10 @@ export default function Race({ room, myId }: Props) {
                     type="button"
                     className={`btn ${styles.skip}`}
                     onClick={() => void skip()}
-                    disabled={!started || pending || blocked || confirmLeave}
+                    disabled={!started || pending || confirmLeave}
                     title="Pasar a la siguiente sílaba (Shift + Enter)"
                   >
-                    Pasar <span className={styles.cost}>{skipCost(room.settings.skipPenalty)}</span>
+                    Pasar <span className={styles.cost}>{skipCost(room.settings.skipPoints)}</span>
                   </button>
                 </div>
                 {/* Siempre ocupa su línea, para que la pista no salte al aparecer un aviso. */}

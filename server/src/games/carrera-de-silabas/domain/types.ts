@@ -22,8 +22,6 @@ export interface Player {
   plays: WordPlay[];
   /** Sílabas que pasó sin resolver. */
   skips: number;
-  /** Tras pasar con penalización de tiempo: no puede escribir hasta entonces. */
-  blockedUntil: number | null;
   /** Último intento de palabra, para limitar la frecuencia. */
   lastWordAt: number | null;
   /** Último mensaje de chat, para limitar la frecuencia. */
@@ -49,12 +47,8 @@ export interface Room {
   chatSeq: number;
   /** Salida automática programada (todos o la mayoría marcaron "Listo"). */
   autoStartAt: number | null;
-  /** Contraseña para entrar (solo vive en el servidor); null = sala abierta. */
-  password: string | null;
   /** Jugadores expulsados por el host: no pueden volver a entrar. */
   banned: Set<string>;
-  /** Intentos fallidos de contraseña por jugador (marcas de tiempo), para frenar los intentos a ciegas. */
-  failedJoins: Map<string, number[]>;
 }
 
 /**
@@ -67,9 +61,6 @@ export interface Room {
 export type AutoStartDecision = 'start' | 'scheduled' | 'cancelled' | 'unchanged';
 
 export type Result<T = object> = ({ ok: true } & T) | { ok: false; error: string };
-
-/** Entrar a una sala: si pide contraseña (falta o no coincide), `needsPassword`. */
-export type JoinResult = { ok: true; room: Room } | { ok: false; error: string; needsPassword?: boolean };
 
 export type WordResult =
   | { accepted: false; error: string }

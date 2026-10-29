@@ -22,12 +22,12 @@ export function registerRoomHandlers(socket: ClientSocket, ctx: RealtimeContext)
     ctx.broadcastState(res.room);
   });
 
-  socket.on('room:join', ({ code, nickname, car, color, password }, ack) => {
+  socket.on('room:join', ({ code, nickname, car, color }, ack) => {
     if (typeof ack !== 'function') return;
     const roomCode = String(code ?? '');
     leaveOtherRoom(roomCode);
     const alreadyIn = manager.getRoomOfPlayer(playerId)?.code === normalizeRoomCode(roomCode);
-    const res = manager.joinRoom(roomCode, playerId, String(nickname ?? ''), { car, color }, password);
+    const res = manager.joinRoom(roomCode, playerId, String(nickname ?? ''), { car, color });
     if (!res.ok) return ack(res);
     socket.join(res.room.code);
     ack({ ok: true });
@@ -58,7 +58,7 @@ export function registerRoomHandlers(socket: ClientSocket, ctx: RealtimeContext)
     const res = manager.updateSettings(playerId, {
       target: patch?.target,
       timeLimitSec: patch?.timeLimitSec,
-      skipPenalty: patch?.skipPenalty,
+      skipPoints: patch?.skipPoints,
     });
     if (!res.ok) return ack(res);
     ack({ ok: true });
@@ -76,14 +76,6 @@ export function registerRoomHandlers(socket: ClientSocket, ctx: RealtimeContext)
     }
     ctx.removePlayer(targetId, `${res.nickname} fue expulsado por el host`);
     ack({ ok: true });
-  });
-
-  socket.on('room:password', (payload, ack) => {
-    if (typeof ack !== 'function') return;
-    const res = manager.setPassword(playerId, payload?.password ?? null);
-    if (!res.ok) return ack(res);
-    ack({ ok: true });
-    ctx.broadcastState(res.room);
   });
 
   socket.on('room:leave', () => {

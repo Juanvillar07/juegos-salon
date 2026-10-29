@@ -1,33 +1,27 @@
 import type { CarPrefs } from '../../cars.js';
 import type { ChatMessage } from '../../chat.js';
-import type { Ack, CreateAck, JoinAck } from '../../events.js';
+import type { Ack, CreateAck } from '../../events.js';
 import type { RoomSettings } from './settings.js';
 import type { PlayerProgress, RaceResult, RoomSnapshot } from './types.js';
 
-export type { Ack, CreateAck, JoinAck, SocketAuth, SocketData } from '../../events.js';
+export type { Ack, CreateAck, SocketAuth, SocketData } from '../../events.js';
 
 /** Respuesta a una palabra: si se acepta, el nuevo marcador del jugador. */
 export type WordAck =
   | { ok: true; word: string; points: number; score: number; syllableIndex: number; finished: boolean }
   | { ok: false; error: string };
 
-/** Respuesta a "Pasar": el marcador tras la penalización y hasta cuándo no se puede escribir. */
+/** Respuesta a "Pasar": el marcador tras la penalización. */
 export type SkipAck =
-  | { ok: true; score: number; syllableIndex: number; blockedUntil: number | null }
+  | { ok: true; score: number; syllableIndex: number }
   | { ok: false; error: string };
 
 export interface ClientToServerEvents {
   'room:create': (payload: { nickname: string } & CarPrefs, ack: (res: CreateAck) => void) => void;
-  /** `password` solo si la sala la tiene (si falta o no coincide, la respuesta trae needsPassword). */
-  'room:join': (
-    payload: { code: string; nickname: string; password?: string } & CarPrefs,
-    ack: (res: JoinAck) => void,
-  ) => void;
+  'room:join': (payload: { code: string; nickname: string } & CarPrefs, ack: (res: Ack) => void) => void;
   'room:leave': () => void;
   /** Expulsar a un jugador de la sala (solo el host); no podrá volver a entrar. */
   'room:kick': (payload: { playerId: string }, ack: (res: Ack) => void) => void;
-  /** Poner o quitar (null) la contraseña de la sala (solo el host). Nunca se difunde a los demás. */
-  'room:password': (payload: { password: string | null }, ack: (res: Ack) => void) => void;
   /** Cambiar auto o color (solo fuera de carrera). */
   'player:customize': (payload: CarPrefs, ack: (res: Ack) => void) => void;
   /** Marcar o desmarcar "Listo" en el lobby. */

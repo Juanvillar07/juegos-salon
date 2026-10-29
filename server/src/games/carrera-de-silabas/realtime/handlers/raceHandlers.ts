@@ -15,7 +15,7 @@ export function registerRaceHandlers(socket: ClientSocket, ctx: RealtimeContext)
     const res = manager.skipSyllable(playerId);
     if (!res.ok) return ack(res);
     const { room, player } = res;
-    ack({ ok: true, score: player.score, syllableIndex: player.syllableIndex, blockedUntil: player.blockedUntil });
+    ack({ ok: true, score: player.score, syllableIndex: player.syllableIndex });
     io.to(room.code).emit('race:progress', { players: manager.getProgress(room) });
   });
 

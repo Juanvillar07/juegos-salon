@@ -4,11 +4,9 @@ import StatusTag from '../../components/StatusTag';
 import Track from '../../components/Track';
 import CarSprite from '../../components/cars/CarSprite';
 import { saveCarChoice, type CarChoice } from '../../lib/storage';
-import { customizeCar, kickPlayer, setRoomPassword } from '../../state/store';
-import InvitePanel from '../../../../shell/InvitePanel';
+import { customizeCar, kickPlayer } from '../../state/store';
+import CopyLinkButton from '../../../../shell/CopyLinkButton';
 import KickButton from '../../../../shell/KickButton';
-import RoomPasswordField from '../../../../shell/RoomPasswordField';
-import { LockIcon } from '../../../../shell/icons';
 import Chat from '../chat/Chat';
 import { roomPath } from '../../routes';
 import RaceInProgress from './RaceInProgress';
@@ -41,16 +39,9 @@ export default function Lobby({ room, myId, isHost }: Props) {
         <header className={styles.head}>
           <div>
             <span className="label">Sala</span>
-            <h1 className={`${styles.code} num`}>
-              {room.code}
-              {room.locked && (
-                <span className={styles.lock} title="Sala con contraseña" aria-label="Sala con contraseña">
-                  <LockIcon />
-                </span>
-              )}
-            </h1>
+            <h1 className={`${styles.code} num`}>{room.code}</h1>
           </div>
-          <InvitePanel link={link} code={room.code} gameName="Rally de Letras" locked={room.locked} />
+          <CopyLinkButton link={link} />
         </header>
 
         {racing ? (
@@ -119,15 +110,6 @@ export default function Lobby({ room, myId, isHost }: Props) {
           </div>
           <RoomSettingsPanel settings={room.settings} isHost={isHost && !racing} />
         </section>
-
-        {isHost && (
-          <section className={styles.section}>
-            <div className={styles.sectionHead}>
-              <span className="label">Contraseña de la sala</span>
-            </div>
-            <RoomPasswordField locked={room.locked} save={setRoomPassword} />
-          </section>
-        )}
       </div>
 
       <aside className={styles.side}>

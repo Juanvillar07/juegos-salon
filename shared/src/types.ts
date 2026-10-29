@@ -70,8 +70,6 @@ export interface RoomState {
   settings: RoomSettings;
   /** Timestamp (reloj del servidor) de la salida automática, si está programada. */
   autoStartAt: number | null;
-  /** La sala pide contraseña para entrar (la contraseña nunca viaja en el estado). */
-  locked: boolean;
 }
 
 /** Estado de sala más la hora del servidor, para sincronizar relojes. */

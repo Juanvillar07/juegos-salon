@@ -1,13 +1,9 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import {
-  MIN_WORD_LENGTH,
-  SKIP_BLOCK_MS,
-  SKIP_PENALTY_OPTIONS,
-  SKIP_POINTS,
+  SKIP_POINTS_OPTIONS,
   TARGET_OPTIONS,
   TIME_LIMIT_OPTIONS,
   type RoomSettings,
-  type SkipPenalty,
 } from '@typeracer/shared/carrera-de-silabas';
 import { useSlidingPill } from '../../../../shell/transitions';
 import { formatDuration } from '../../../rally-de-letras/lib/format';
@@ -22,28 +18,24 @@ interface Props {
 /** Largo de una palabra típica, para estimar cuántas hacen falta para la meta. */
 const TYPICAL_WORD = 7;
 
-const SKIP_LABELS: Record<SkipPenalty, string> = {
-  points: `−${SKIP_POINTS} pts`,
-  time: `${SKIP_BLOCK_MS / 1000} s`,
-  both: 'Ambos',
-};
+function skipLabel(points: number): string {
+  return points === 0 ? 'Sin penalización' : `−${points} pts`;
+}
 
-const SKIP_HINTS: Record<SkipPenalty, string> = {
-  points: `Pasar a la siguiente sílaba quita ${SKIP_POINTS} puntos (sin bajar de 0).`,
-  time: `Pasar a la siguiente sílaba deja ${SKIP_BLOCK_MS / 1000} segundos sin poder escribir.`,
-  both: `Pasar quita ${SKIP_POINTS} puntos y deja ${SKIP_BLOCK_MS / 1000} segundos sin poder escribir.`,
-};
+function skipHint(points: number): string {
+  return points === 0 ? 'Pasar a la siguiente sílaba es gratis.' : `Pasar quita ${points} puntos (sin bajar de 0).`;
+}
 
-/** Meta de puntos y límite de tiempo de la sala: el host los elige, el resto los ve. */
+/** Meta de puntos, límite de tiempo y coste de pasar: el host los elige, el resto los ve. */
 export default function RoomSettingsPanel({ settings, isHost }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   // Píldora deslizante de los selectores (Tabs sliding, transitions.dev).
   const targetBar = useSlidingPill<HTMLDivElement>(settings.target);
   const timeBar = useSlidingPill<HTMLDivElement>(settings.timeLimitSec);
-  const skipBar = useSlidingPill<HTMLDivElement>(settings.skipPenalty);
-  const hint = `Cada palabra suma un punto por letra (mínimo ${MIN_WORD_LENGTH}). Con palabras de ${TYPICAL_WORD} letras son unas ${Math.ceil(settings.target / TYPICAL_WORD)} palabras.`;
-  const timeHint = 'Si se acaba el tiempo, los que no llegaron a la meta se ordenan por puntos.';
+  const skipBar = useSlidingPill<HTMLDivElement>(settings.skipPoints);
+  const targetHint = `Con palabras de ${TYPICAL_WORD} letras son unas ${Math.ceil(settings.target / TYPICAL_WORD)} palabras.`;
+  const timeHint = 'Si se acaba, gana quien tenga más puntos.';
 
   const save = async (patch: Partial<RoomSettings>) => {
     setSaving(true);
@@ -55,89 +47,87 @@ export default function RoomSettingsPanel({ settings, isHost }: Props) {
   if (!isHost) {
     return (
       <div className={styles.panel}>
-        <div className={styles.readRow}>
-          <span className="label">Meta</span>
-          <span className="num">{settings.target} puntos</span>
-        </div>
-        <p className={styles.hint}>{hint}</p>
-        <div className={styles.readRow}>
-          <span className="label">Tiempo</span>
-          <span>{formatDuration(settings.timeLimitSec)}</span>
-        </div>
-        <div className={styles.readRow}>
-          <span className="label">Pasar sílaba</span>
-          <span>{SKIP_LABELS[settings.skipPenalty]}</span>
-        </div>
-        <p className={styles.hint}>{SKIP_HINTS[settings.skipPenalty]}</p>
+        <Setting name="Meta" hint={targetHint}>
+          <span className={`${styles.value} num`}>{settings.target} puntos</span>
+        </Setting>
+        <Setting name="Tiempo límite" hint={timeHint}>
+          <span className={styles.value}>{formatDuration(settings.timeLimitSec)}</span>
+        </Setting>
+        <Setting name="Pasar sílaba" hint={skipHint(settings.skipPoints)}>
+          <span className={styles.value}>{skipLabel(settings.skipPoints)}</span>
+        </Setting>
       </div>
     );
   }
 
   return (
     <div className={styles.panel}>
-      <div className={styles.section}>
-        <div className={styles.sectionHead}>
-          <span className="label">Meta</span>
-          <div className="segmented" ref={targetBar}>
-            <span className="t-tabs-pill" aria-hidden="true" />
-            {TARGET_OPTIONS.map((target) => (
-              <button
-                key={target}
-                type="button"
-                aria-pressed={settings.target === target}
-                onClick={() => save({ target })}
-                disabled={saving}
-              >
-                {target} puntos
-              </button>
-            ))}
-          </div>
+      <Setting name="Meta" hint={targetHint}>
+        <div className="segmented" ref={targetBar}>
+          <span className="t-tabs-pill" aria-hidden="true" />
+          {TARGET_OPTIONS.map((target) => (
+            <button
+              key={target}
+              type="button"
+              aria-pressed={settings.target === target}
+              onClick={() => save({ target })}
+              disabled={saving}
+            >
+              {target} puntos
+            </button>
+          ))}
         </div>
-        <p className={styles.hint}>{hint}</p>
-      </div>
+      </Setting>
 
-      <div className={styles.section}>
-        <div className={styles.sectionHead}>
-          <span className="label">Tiempo límite</span>
-          <div className="segmented" ref={timeBar}>
-            <span className="t-tabs-pill" aria-hidden="true" />
-            {TIME_LIMIT_OPTIONS.map((sec) => (
-              <button
-                key={sec}
-                type="button"
-                aria-pressed={settings.timeLimitSec === sec}
-                onClick={() => save({ timeLimitSec: sec })}
-                disabled={saving}
-              >
-                {formatDuration(sec)}
-              </button>
-            ))}
-          </div>
+      <Setting name="Tiempo límite" hint={timeHint}>
+        <div className="segmented" ref={timeBar}>
+          <span className="t-tabs-pill" aria-hidden="true" />
+          {TIME_LIMIT_OPTIONS.map((sec) => (
+            <button
+              key={sec}
+              type="button"
+              aria-pressed={settings.timeLimitSec === sec}
+              onClick={() => save({ timeLimitSec: sec })}
+              disabled={saving}
+            >
+              {formatDuration(sec)}
+            </button>
+          ))}
         </div>
-        <p className={styles.hint}>{timeHint}</p>
-      </div>
+      </Setting>
 
-      <div className={styles.section}>
-        <div className={styles.sectionHead}>
-          <span className="label">Pasar sílaba</span>
-          <div className="segmented" ref={skipBar}>
-            <span className="t-tabs-pill" aria-hidden="true" />
-            {SKIP_PENALTY_OPTIONS.map((penalty) => (
-              <button
-                key={penalty}
-                type="button"
-                aria-pressed={settings.skipPenalty === penalty}
-                onClick={() => save({ skipPenalty: penalty })}
-                disabled={saving}
-              >
-                {SKIP_LABELS[penalty]}
-              </button>
-            ))}
-          </div>
+      <Setting name="Pasar sílaba" hint={skipHint(settings.skipPoints)}>
+        <div className="segmented" ref={skipBar}>
+          <span className="t-tabs-pill" aria-hidden="true" />
+          {SKIP_POINTS_OPTIONS.map((points) => (
+            <button
+              key={points}
+              type="button"
+              aria-pressed={settings.skipPoints === points}
+              onClick={() => save({ skipPoints: points })}
+              disabled={saving}
+            >
+              {skipLabel(points)}
+            </button>
+          ))}
         </div>
-        <p className={styles.hint}>{SKIP_HINTS[settings.skipPenalty]}</p>
-      </div>
+      </Setting>
       {error && <p className="error">{error}</p>}
+    </div>
+  );
+}
+
+/** Una fila de ajustes: nombre y explicación a la izquierda, control (o valor) a la derecha. */
+function Setting({ name, hint, children }: { name: string; hint: string; children: ReactNode }) {
+  return (
+    <div className={styles.section}>
+      <div className={styles.field}>
+        <div className={styles.fieldText}>
+          <span className={styles.fieldName}>{name}</span>
+          <span className={styles.hint}>{hint}</span>
+        </div>
+        {children}
+      </div>
     </div>
   );
 }
