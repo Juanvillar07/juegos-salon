@@ -6,7 +6,7 @@ export interface RoomSettings {
   target: number;
   /** Límite de tiempo de cada carrera, en segundos: los que no llegan se ordenan por puntos. */
   timeLimitSec: number;
-  /** Puntos que se pierden al pasar a la siguiente sílaba (sin bajar de 0); 0 = pasar es gratis. */
+  /** Puntos que se pierden al pasar a la siguiente sílaba (el marcador puede quedar en negativo); 0 = gratis. */
   skipPoints: number;
 }
 

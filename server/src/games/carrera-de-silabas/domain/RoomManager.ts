@@ -419,7 +419,8 @@ export class RoomManager {
   }
 
   /**
-   * Pasa a la siguiente sílaba pagando los puntos que fije la sala (sin bajar de 0; puede ser gratis).
+   * Pasa a la siguiente sílaba pagando los puntos que fije la sala (puede ser gratis). El marcador
+   * puede quedar en negativo: pasar nada más empezar también cuesta y aleja la meta.
    * Comparte la espera mínima con las palabras, para que no se pueda pasar en ráfaga.
    */
   skipSyllable(playerId: string): Result<{ room: Room; player: Player }> {
@@ -436,7 +437,7 @@ export class RoomManager {
     }
     player.lastWordAt = now;
 
-    player.score = Math.max(0, player.score - room.settings.skipPoints);
+    player.score -= room.settings.skipPoints;
     player.syllableIndex++;
     player.skips++;
     return { ok: true, room, player };

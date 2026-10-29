@@ -31,7 +31,7 @@ function racing(skipPoints = 5) {
 }
 
 describe('Carrera de Sílabas: pasar de sílaba', () => {
-  it('resta los puntos de la sala sin bajar de 0 y se puede seguir escribiendo', () => {
+  it('resta los puntos de la sala y se puede seguir escribiendo', () => {
     const { manager, room, advance } = racing(5);
     manager.submitWord('a', 'trabajo'); // +7
     advance(SUBMIT_COOLDOWN_MS);
@@ -39,7 +39,7 @@ describe('Carrera de Sílabas: pasar de sílaba', () => {
     expect(room.players.get('a')).toMatchObject({ score: 2, skips: 1 });
     advance(SUBMIT_COOLDOWN_MS);
     manager.skipSyllable('a');
-    expect(room.players.get('a')!.score).toBe(0);
+    expect(room.players.get('a')!.score).toBe(-3);
     advance(SUBMIT_COOLDOWN_MS);
     expect(manager.submitWord('a', 'tractor')).toMatchObject({ accepted: true });
   });
@@ -50,6 +50,14 @@ describe('Carrera de Sílabas: pasar de sílaba', () => {
     advance(SUBMIT_COOLDOWN_MS);
     manager.skipSyllable('a');
     expect(room.players.get('a')).toMatchObject({ score: 7, syllableIndex: 2, skips: 1 });
+  });
+
+  it('pasar nada más empezar deja el marcador en negativo y aleja la meta', () => {
+    const { manager, room, advance } = racing(5);
+    expect(manager.skipSyllable('a')).toMatchObject({ ok: true, player: { score: -5 } });
+    advance(SUBMIT_COOLDOWN_MS);
+    manager.submitWord('a', 'casa'); // +4
+    expect(room.players.get('a')).toMatchObject({ score: -1, position: null });
   });
 
   it('no se puede pasar en ráfaga', () => {

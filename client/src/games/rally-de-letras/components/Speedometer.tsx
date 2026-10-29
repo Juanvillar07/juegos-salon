@@ -27,7 +27,7 @@ function arc(from: number, to: number): string {
 /** Velocímetro: arco de 240° con aguja, marcas y el valor en el centro. */
 export default function Speedometer({ value, max = 120, label = 'wpm', size = 168 }: Props) {
   const scale = Math.max(max, Math.ceil(value / 20) * 20);
-  const ratio = Math.min(1, value / scale);
+  const ratio = Math.min(1, Math.max(0, value / scale));
   const angle = START + (END - START) * ratio;
   const ticks = Array.from({ length: 7 }, (_, i) => START + ((END - START) * i) / 6);
 

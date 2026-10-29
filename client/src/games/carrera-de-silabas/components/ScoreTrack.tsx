@@ -34,7 +34,7 @@ export default function ScoreTrack({ room, myId, live = false, fit = false }: Pr
     <div className={`${styles.track} ${fit ? styles.fit : ''}`} style={{ ['--car-width' as string]: `${CAR_WIDTH}px` }}>
       {room.players.map((p) => {
         const mine = p.id === myId;
-        const ratio = Math.min(1, p.score / target);
+        const ratio = Math.min(1, Math.max(0, p.score / target));
         // Volvió a la sala sin llegar: su auto se queda parado donde lo dejó.
         const retired = p.retired && p.position === null;
         const moving = live && p.status === 'connected' && !retired && p.position === null && p.score > 0;
