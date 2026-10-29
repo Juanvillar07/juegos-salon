@@ -75,6 +75,12 @@ export function applyInput(words: string[], state: TypingState, rawValue: string
   const target = targetFor(words, state.wordIndex);
   if (state.wordIndex >= words.length) return state;
 
+  // Varias palabras de golpe (autocompletado o escritura deslizando en el móvil, o texto insertado
+  // en un solo evento): si empieza por la palabra completa, se avanza y el resto va a la siguiente.
+  if (rawValue.length > target.length && rawValue.startsWith(target) && state.wordIndex < words.length - 1) {
+    return applyInput(words, applyInput(words, state, target), rawValue.slice(target.length));
+  }
+
   const value = rawValue.slice(0, target.length + OVERTYPE_LIMIT);
   const typedMore = value.length - state.input.length;
   const mistake = typedMore > 0 && !target.startsWith(value);

@@ -31,11 +31,18 @@ const LENGTH_LABELS: Record<TextLength, string> = {
 };
 
 const LENGTH_HINTS: Record<TextLength, string> = {
-  any: 'Cada carrera usa un texto distinto del catálogo en español.',
-  short: 'Textos de menos de 200 caracteres: carreras rápidas.',
-  medium: 'Textos de 200 a 300 caracteres.',
-  long: 'Textos de más de 300 caracteres: para quien busca resistencia.',
+  any: 'Textos de cualquier largo.',
+  short: 'Menos de 200 caracteres.',
+  medium: 'De 200 a 300 caracteres.',
+  long: 'Más de 300 caracteres.',
 };
+
+const TIME_HINT = 'Al acabarse, gana quien más avanzó.';
+
+const SOURCES = [
+  { mode: 'random', title: 'Del catálogo', hint: 'Un texto en español distinto en cada carrera.' },
+  { mode: 'custom', title: 'Texto propio', hint: 'Pegas el texto que todos van a escribir.' },
+] as const;
 
 /** Ajustes de la sala: el host los edita, el resto los ve. */
 export default function RoomSettingsPanel({ settings, isHost }: Props) {
@@ -44,7 +51,6 @@ export default function RoomSettingsPanel({ settings, isHost }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   // Píldora deslizante de los selectores (Tabs sliding, transitions.dev).
-  const textBar = useSlidingPill<HTMLDivElement>(mode);
   const timeBar = useSlidingPill<HTMLDivElement>(settings.timeLimitSec);
   // Con el modo en la clave: el selector de longitud solo existe con texto aleatorio.
   const lengthBar = useSlidingPill<HTMLDivElement>(`${mode}-${settings.textLength}`);
@@ -79,26 +85,36 @@ export default function RoomSettingsPanel({ settings, isHost }: Props) {
   if (!isHost) {
     return (
       <div className={styles.panel}>
-        <div className={styles.readRow}>
-          <span className="label">Texto</span>
-          <span>
-            {activeText
-              ? `Personalizado · ${activeText.length} caracteres`
-              : settings.textLength === 'any'
-                ? 'Aleatorio del catálogo'
-                : `Aleatorio · ${LENGTH_LABELS[settings.textLength].toLowerCase()}`}
-          </span>
-        </div>
-        {activeText && <p className={styles.preview}>{activeText}</p>}
-        {settings.plainText && !activeText && (
-          <div className={styles.readRow}>
-            <span className="label">Signos</span>
-            <span>Sin ¿ ¡ ni comillas</span>
+        <div className={styles.section}>
+          <div className={styles.field}>
+            <div className={styles.fieldText}>
+              <span className={styles.fieldName}>Texto</span>
+              <span className={styles.hint}>
+                {activeText
+                  ? 'Lo eligió el host.'
+                  : settings.plainText
+                    ? `${LENGTH_HINTS[settings.textLength]} Sin ¿ ¡ ni comillas.`
+                    : LENGTH_HINTS[settings.textLength]}
+              </span>
+            </div>
+            <span className={styles.value}>
+              {activeText
+                ? `Propio · ${activeText.length} caracteres`
+                : settings.textLength === 'any'
+                  ? 'Del catálogo'
+                  : `Del catálogo · ${LENGTH_LABELS[settings.textLength].toLowerCase()}`}
+            </span>
           </div>
-        )}
-        <div className={styles.readRow}>
-          <span className="label">Tiempo</span>
-          <span>{formatDuration(settings.timeLimitSec)}</span>
+          {activeText && <p className={styles.preview}>{activeText}</p>}
+        </div>
+        <div className={styles.section}>
+          <div className={styles.field}>
+            <div className={styles.fieldText}>
+              <span className={styles.fieldName}>Tiempo límite</span>
+              <span className={styles.hint}>{TIME_HINT}</span>
+            </div>
+            <span className={styles.value}>{formatDuration(settings.timeLimitSec)}</span>
+          </div>
         </div>
       </div>
     );
@@ -107,23 +123,34 @@ export default function RoomSettingsPanel({ settings, isHost }: Props) {
   return (
     <div className={styles.panel}>
       <div className={styles.section}>
-        <div className={styles.sectionHead}>
-          <span className="label">Texto</span>
-          <div className="segmented" ref={textBar}>
-            <span className="t-tabs-pill" aria-hidden="true" />
-            <button type="button" aria-pressed={mode === 'random'} onClick={() => chooseMode('random')}>
-              Aleatorio
+        <div className={styles.fieldText}>
+          <span className={styles.fieldName}>Texto</span>
+          <span className={styles.hint}>De dónde sale el texto que todos escriben.</span>
+        </div>
+        <div className={styles.choices} role="radiogroup" aria-label="Origen del texto">
+          {SOURCES.map((source) => (
+            <button
+              key={source.mode}
+              type="button"
+              role="radio"
+              aria-checked={mode === source.mode}
+              className={styles.choice}
+              onClick={() => chooseMode(source.mode)}
+              disabled={saving}
+            >
+              <span className={styles.choiceTitle}>{source.title}</span>
+              <span className={styles.choiceHint}>{source.hint}</span>
             </button>
-            <button type="button" aria-pressed={mode === 'custom'} onClick={() => chooseMode('custom')}>
-              Personalizado
-            </button>
-          </div>
+          ))}
         </div>
 
         {mode === 'random' ? (
-          <>
-            <div className={styles.subRow}>
-              <span className="muted">Longitud</span>
+          <div className={styles.options}>
+            <div className={styles.field}>
+              <div className={styles.fieldText}>
+                <span className={styles.fieldName}>Longitud</span>
+                <span className={styles.hint}>{LENGTH_HINTS[settings.textLength]}</span>
+              </div>
               <div className="segmented" ref={lengthBar}>
                 <span className="t-tabs-pill" aria-hidden="true" />
                 {TEXT_LENGTH_OPTIONS.map((length) => (
@@ -139,20 +166,25 @@ export default function RoomSettingsPanel({ settings, isHost }: Props) {
                 ))}
               </div>
             </div>
-            <p className="muted">{LENGTH_HINTS[settings.textLength]}</p>
             {/* Solo para el catálogo: un texto pegado se escribe tal cual. */}
-            <label className={styles.check} title="Quita ¿ ¡ y comillas, para quien juega con teclado en inglés">
+            <label className={styles.field}>
+              <span className={styles.fieldText}>
+                <span className={styles.fieldName}>Sin signos</span>
+                <span className={styles.hint}>Quita ¿ ¡ y comillas: más cómodo con teclado en inglés.</span>
+              </span>
               <input
                 type="checkbox"
+                role="switch"
+                className={styles.switch}
                 checked={settings.plainText}
                 disabled={saving}
                 onChange={(e) => save({ plainText: e.target.checked })}
               />
-              Sin signos
             </label>
-          </>
+          </div>
         ) : (
-          <>
+          // Mismo alto aproximado que las opciones del catálogo: cambiar de origen no hace saltar el panel.
+          <div className={styles.options}>
             <textarea
               className={styles.textarea}
               value={draft}
@@ -161,9 +193,10 @@ export default function RoomSettingsPanel({ settings, isHost }: Props) {
                 setError(null);
               }}
               placeholder="Pega aquí el texto que todos deben escribir…"
-              rows={5}
+              rows={2}
               maxLength={MAX_CUSTOM_TEXT_LENGTH * 2}
               spellCheck={false}
+              aria-label="Texto de la carrera"
             />
             <div className={styles.meta}>
               <span className={`num ${normalized.length > MAX_CUSTOM_TEXT_LENGTH ? styles.over : ''}`}>
@@ -173,9 +206,10 @@ export default function RoomSettingsPanel({ settings, isHost }: Props) {
               {normalized.length > 0 && (
                 <span className="num">≈ {formatDuration(Math.max(1, Math.round((normalized.length / 5 / REFERENCE_WPM) * 60)))} a {REFERENCE_WPM} wpm</span>
               )}
+              {!settings.customText && normalized.length === 0 && <span>Mientras, se usa el catálogo</span>}
               <button
                 type="button"
-                className="btn primary"
+                className={`btn primary ${styles.save}`}
                 onClick={() => save({ customText: draft })}
                 disabled={!dirty || !!draftError || normalized.length === 0 || saving}
               >
@@ -183,16 +217,16 @@ export default function RoomSettingsPanel({ settings, isHost }: Props) {
               </button>
             </div>
             {draftError && <p className="error">{draftError}</p>}
-            {!draftError && draft !== normalized && normalized.length > 0 && (
-              <p className={styles.hint}>Los saltos de línea y las comillas tipográficas se simplifican al guardar.</p>
-            )}
-          </>
+          </div>
         )}
       </div>
 
       <div className={styles.section}>
-        <div className={styles.sectionHead}>
-          <span className="label">Tiempo límite</span>
+        <div className={styles.field}>
+          <div className={styles.fieldText}>
+            <span className={styles.fieldName}>Tiempo límite</span>
+            <span className={styles.hint}>{TIME_HINT}</span>
+          </div>
           <div className="segmented" ref={timeBar}>
             <span className="t-tabs-pill" aria-hidden="true" />
             {TIME_LIMIT_OPTIONS.map((sec) => (
@@ -209,7 +243,7 @@ export default function RoomSettingsPanel({ settings, isHost }: Props) {
           </div>
         </div>
         {neededWpm !== null && neededWpm >= DEMANDING_WPM && (
-          <p className={styles.hint}>
+          <p className={styles.warn}>
             Para terminar este texto en {formatDuration(settings.timeLimitSec)} hay que escribir a {neededWpm} wpm o más.
           </p>
         )}

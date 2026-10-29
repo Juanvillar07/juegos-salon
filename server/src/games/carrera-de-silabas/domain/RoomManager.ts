@@ -21,6 +21,7 @@ import {
   checkWordShape,
   normalizeWord,
   validateTarget,
+  validateSkipPoints,
   validateTimeLimit,
   wordPoints,
   type PlayerProgress,
@@ -127,6 +128,7 @@ export class RoomManager {
       chat: [],
       chatSeq: 0,
       autoStartAt: null,
+      banned: new Set(),
     };
     this.rooms.set(code, room);
     this.addPlayer(room, playerId, name, prefs);
@@ -146,6 +148,7 @@ export class RoomManager {
       return { ok: true, room };
     }
     if (current) return { ok: false, error: 'Ya estás en otra sala' };
+    if (room.banned.has(playerId)) return { ok: false, error: 'El host te expulsó de esta sala' };
 
     if (room.phase === 'racing') return { ok: false, error: 'La carrera ya empezó, espera a que termine' };
     const active = [...room.players.values()].filter(isActive).length;
@@ -173,6 +176,21 @@ export class RoomManager {
     if (prefs.car) player.car = prefs.car;
     if (prefs.color) player.color = prefs.color;
     return { ok: true, room };
+  }
+
+  /**
+   * El host expulsa a un jugador: queda vetado en la sala (no puede volver a entrar).
+   * La salida en sí (avisos, carrera) la hace la capa de tiempo real con leaveRoom.
+   */
+  kick(hostId: string, targetId: unknown): Result<{ room: Room; nickname: string }> {
+    const room = this.getRoomOfPlayer(hostId);
+    if (!room) return { ok: false, error: 'No estás en ninguna sala' };
+    if (room.hostId !== hostId) return { ok: false, error: 'Solo el host puede expulsar' };
+    if (typeof targetId !== 'string' || targetId === hostId) return { ok: false, error: 'No puedes expulsarte a ti mismo' };
+    const target = room.players.get(targetId);
+    if (!target || !isActive(target)) return { ok: false, error: 'Ese jugador no está en la sala' };
+    room.banned.add(targetId);
+    return { ok: true, room, nickname: target.nickname };
   }
 
   /** Pérdida de conexión: el jugador conserva su lugar hasta que vuelva o se llame a leaveRoom. */
@@ -271,6 +289,11 @@ export class RoomManager {
       const error = validateTimeLimit(patch.timeLimitSec);
       if (error) return { ok: false, error };
       next.timeLimitSec = patch.timeLimitSec;
+    }
+    if (patch.skipPoints !== undefined) {
+      const error = validateSkipPoints(patch.skipPoints);
+      if (error) return { ok: false, error };
+      next.skipPoints = patch.skipPoints;
     }
     room.settings = next;
     return { ok: true, room };
@@ -379,6 +402,7 @@ export class RoomManager {
 
     const points = wordPoints(word);
     player.usedWords.add(word);
+    player.plays.push({ word, syllable });
     player.score += points;
     player.syllableIndex++;
     if (player.longestWord === null || word.length > player.longestWord.length) player.longestWord = word;
@@ -392,6 +416,30 @@ export class RoomManager {
     }
     const raceOver = this.raceOutcome(room) === 'over';
     return { accepted: true, room, word, syllable, points, finishedPosition, raceOver };
+  }
+
+  /**
+   * Pasa a la siguiente sílaba pagando los puntos que fije la sala (sin bajar de 0; puede ser gratis).
+   * Comparte la espera mínima con las palabras, para que no se pueda pasar en ráfaga.
+   */
+  skipSyllable(playerId: string): Result<{ room: Room; player: Player }> {
+    const room = this.getRoomOfPlayer(playerId);
+    const player = room?.players.get(playerId);
+    if (!room || !player) return { ok: false, error: 'No estás en ninguna sala' };
+    if (room.phase !== 'racing' || room.startAt === null) return { ok: false, error: 'No hay ninguna carrera en curso' };
+    const now = this.now();
+    if (now < room.startAt) return { ok: false, error: 'Espera la salida' };
+    if (player.retired) return { ok: false, error: 'Volviste a la sala' };
+    if (player.position !== null) return { ok: false, error: 'Ya llegaste a la meta' };
+    if (player.lastWordAt !== null && now - player.lastWordAt < SUBMIT_COOLDOWN_MS) {
+      return { ok: false, error: 'Más despacio' };
+    }
+    player.lastWordAt = now;
+
+    player.score = Math.max(0, player.score - room.settings.skipPoints);
+    player.syllableIndex++;
+    player.skips++;
+    return { ok: true, room, player };
   }
 
   /**
@@ -531,6 +579,8 @@ export class RoomManager {
       position: null,
       finishedAt: null,
       retired: false,
+      plays: [],
+      skips: 0,
       lastWordAt: null,
       lastChatAt: null,
     });
@@ -546,6 +596,8 @@ function resetPlayerRace(p: Player): void {
   p.position = null;
   p.finishedAt = null;
   p.retired = false;
+  p.plays = [];
+  p.skips = 0;
   p.lastWordAt = null;
   p.ready = false;
 }

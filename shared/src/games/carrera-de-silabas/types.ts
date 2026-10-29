@@ -34,6 +34,15 @@ export interface RaceResult {
   score: number;
   words: number;
   longestWord: string | null;
+  /** Palabras aceptadas, en orden, con la sílaba que resolvió cada una (solo al terminar). */
+  plays: WordPlay[];
+  /** Sílabas que pasó sin resolver. */
+  skips: number;
+}
+
+export interface WordPlay {
+  word: string;
+  syllable: string;
 }
 
 export interface RoomState {

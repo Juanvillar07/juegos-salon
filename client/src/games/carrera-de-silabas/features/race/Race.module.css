@@ -58,9 +58,28 @@
   border-bottom-color: var(--good);
 }
 
+/* Campo y botón "Pasar" en una fila. */
+.entry {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  max-width: 560px;
+}
+
 /* Contenedor que se sacude (t-input, Error state shake de transitions.dev). */
 .inputWrap {
+  flex: 1;
+  min-width: 0;
   max-width: 420px;
+}
+
+.skip {
+  flex-shrink: 0;
+}
+
+.cost {
+  font-size: 0.8rem;
+  color: var(--muted);
 }
 
 /* Palabra rechazada: borde de error mientras se lee el aviso. */

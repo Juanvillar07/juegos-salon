@@ -6,6 +6,7 @@ import { playAgain } from '../../state/store';
 import { GAME_HOME } from '../../routes';
 import Chat from '../chat/Chat';
 import styles from '../../../rally-de-letras/features/results/Results.module.css';
+import words from './RaceWords.module.css';
 import ExitRoomLink from '../../../../shell/ExitRoomLink';
 
 interface Props {
@@ -88,6 +89,8 @@ export default function Results({ room, myId, isHost }: Props) {
           </tbody>
         </table>
 
+        <RaceWords results={results} myId={myId} />
+
         <div className="actions">
           {isHost ? (
             <button className="btn primary big" onClick={playAgain}>
@@ -105,6 +108,54 @@ export default function Results({ room, myId, isHost }: Props) {
         </div>
       </section>
     </div>
+  );
+}
+
+/**
+ * Las palabras de cada piloto, con la sílaba que resolvió resaltada. Durante la carrera no se
+ * envían (servirían para copiar); al terminar son divertidas de comparar y se aprende vocabulario.
+ */
+function RaceWords({ results, myId }: { results: RaceResult[]; myId: string }) {
+  if (!results.some((r) => r.plays.length > 0 || r.skips > 0)) return null;
+  return (
+    <section className={words.section}>
+      <span className="label">Palabras de la carrera</span>
+      {results.map((r) => (
+        <details key={r.playerId} className={words.player} open={r.playerId === myId}>
+          <summary>
+            <span className="dot" style={{ background: r.color }} />
+            <span className="nick">{r.playerId === myId ? 'Tú' : r.nickname}</span>
+            <span className="muted num">
+              {r.plays.length} {r.plays.length === 1 ? 'palabra' : 'palabras'}
+              {r.skips > 0 && ` · pasó ${r.skips} ${r.skips === 1 ? 'sílaba' : 'sílabas'}`}
+            </span>
+          </summary>
+          {r.plays.length > 0 ? (
+            <ul className={words.list}>
+              {r.plays.map((play) => (
+                <li key={play.word} className={play.word === r.longestWord ? words.longest : undefined}>
+                  <Highlight word={play.word} syllable={play.syllable} />
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="muted">Sin palabras en esta carrera.</p>
+          )}
+        </details>
+      ))}
+    </section>
+  );
+}
+
+function Highlight({ word, syllable }: { word: string; syllable: string }) {
+  const at = word.indexOf(syllable);
+  if (at < 0) return <>{word}</>;
+  return (
+    <>
+      {word.slice(0, at)}
+      <mark>{syllable}</mark>
+      {word.slice(at + syllable.length)}
+    </>
   );
 }
 

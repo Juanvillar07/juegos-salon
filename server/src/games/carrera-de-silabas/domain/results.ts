@@ -15,6 +15,8 @@ export function computeResults(room: Room): RaceResult[] {
       score: p.score,
       words: p.usedWords.size,
       longestWord: p.longestWord,
+      plays: [...p.plays],
+      skips: p.skips,
     }))
     .sort((a, b) => {
       if (a.position !== null && b.position !== null) return a.position - b.position;

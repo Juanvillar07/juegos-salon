@@ -1,5 +1,5 @@
 import type { CarModel, ChatMessage, PlayerStatus, RoomPhase } from '@typeracer/shared';
-import type { RaceResult, RoomSettings } from '@typeracer/shared/carrera-de-silabas';
+import type { RaceResult, RoomSettings, WordPlay } from '@typeracer/shared/carrera-de-silabas';
 
 export interface Player {
   id: string;
@@ -18,6 +18,10 @@ export interface Player {
   finishedAt: number | null;
   /** Volvió a la sala durante la carrera: ya no corre, pero sigue en la sala. */
   retired: boolean;
+  /** Palabras aceptadas en orden, con su sílaba; solo se envían en los resultados. */
+  plays: WordPlay[];
+  /** Sílabas que pasó sin resolver. */
+  skips: number;
   /** Último intento de palabra, para limitar la frecuencia. */
   lastWordAt: number | null;
   /** Último mensaje de chat, para limitar la frecuencia. */
@@ -43,6 +47,8 @@ export interface Room {
   chatSeq: number;
   /** Salida automática programada (todos o la mayoría marcaron "Listo"). */
   autoStartAt: number | null;
+  /** Jugadores expulsados por el host: no pueden volver a entrar. */
+  banned: Set<string>;
 }
 
 /**

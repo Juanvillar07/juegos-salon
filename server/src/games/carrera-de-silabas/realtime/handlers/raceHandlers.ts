@@ -10,6 +10,15 @@ export function registerRaceHandlers(socket: ClientSocket, ctx: RealtimeContext)
     ctx.launchRace(res.room);
   });
 
+  socket.on('race:skip', (ack) => {
+    if (typeof ack !== 'function') return;
+    const res = manager.skipSyllable(playerId);
+    if (!res.ok) return ack(res);
+    const { room, player } = res;
+    ack({ ok: true, score: player.score, syllableIndex: player.syllableIndex });
+    io.to(room.code).emit('race:progress', { players: manager.getProgress(room) });
+  });
+
   socket.on('race:word', (payload, ack) => {
     if (typeof ack !== 'function') return;
     const res = manager.submitWord(playerId, payload?.word);

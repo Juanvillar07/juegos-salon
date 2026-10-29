@@ -122,6 +122,7 @@ export class RoomManager {
       chat: [],
       chatSeq: 0,
       autoStartAt: null,
+      banned: new Set(),
     };
     this.rooms.set(code, room);
     this.addPlayer(room, playerId, name, prefs);
@@ -141,6 +142,7 @@ export class RoomManager {
       return { ok: true, room };
     }
     if (current) return { ok: false, error: 'Ya estás en otra sala' };
+    if (room.banned.has(playerId)) return { ok: false, error: 'El host te expulsó de esta sala' };
 
     const active = [...room.players.values()].filter(isActive).length;
     if (active >= MAX_PLAYERS) return { ok: false, error: `La sala está llena (máximo ${MAX_PLAYERS})` };
@@ -173,6 +175,21 @@ export class RoomManager {
     if (prefs.car) player.car = prefs.car;
     if (prefs.color) player.color = prefs.color;
     return { ok: true, room };
+  }
+
+  /**
+   * El host expulsa a un jugador: queda vetado en la sala (no puede volver a entrar).
+   * La salida en sí (avisos, carrera) la hace la capa de tiempo real con leaveRoom.
+   */
+  kick(hostId: string, targetId: unknown): Result<{ room: Room; nickname: string }> {
+    const room = this.getRoomOfPlayer(hostId);
+    if (!room) return { ok: false, error: 'No estás en ninguna sala' };
+    if (room.hostId !== hostId) return { ok: false, error: 'Solo el host puede expulsar' };
+    if (typeof targetId !== 'string' || targetId === hostId) return { ok: false, error: 'No puedes expulsarte a ti mismo' };
+    const target = room.players.get(targetId);
+    if (!target || !isActive(target)) return { ok: false, error: 'Ese jugador no está en la sala' };
+    room.banned.add(targetId);
+    return { ok: true, room, nickname: target.nickname };
   }
 
   /** Pérdida de conexión: el jugador conserva su lugar hasta que vuelva o se llame a leaveRoom. */

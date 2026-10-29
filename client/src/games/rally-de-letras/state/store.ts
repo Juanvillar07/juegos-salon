@@ -1,6 +1,15 @@
 import { useSyncExternalStore } from 'react';
-import type { Ack, CarPrefs, ChatMessage, CreateAck, RoomSettings, RoomSnapshot, RoomState } from '@typeracer/shared';
+import type {
+  Ack,
+  CarPrefs,
+  ChatMessage,
+  CreateAck,
+  RoomSettings,
+  RoomSnapshot,
+  RoomState,
+} from '@typeracer/shared';
 import { ordinal } from '../lib/format';
+import { alertRaceStart } from '../../../shell/raceAlert';
 import { socket } from '../lib/socket';
 import { getCarChoice, setSessionId } from '../lib/storage';
 
@@ -70,6 +79,16 @@ export function createRoom(nickname: string): Promise<CreateAck> {
 
 export function joinRoom(code: string, nickname: string): Promise<Ack> {
   return new Promise((resolve) => socket.emit('room:join', { code, nickname, ...getCarChoice() }, resolve));
+}
+
+/** Expulsa a un jugador (host). Si el servidor lo rechaza, se muestra el error. */
+export function kickPlayer(playerId: string): Promise<Ack> {
+  return new Promise((resolve) =>
+    socket.emit('room:kick', { playerId }, (res) => {
+      if (!res.ok) setState({ error: res.error });
+      resolve(res);
+    }),
+  );
 }
 
 /** Cambia auto/color en la sala. Si el servidor lo rechaza (color ocupado), se muestra el error. */
@@ -165,6 +184,8 @@ socket.on('session:ready', ({ sessionId, playerId, room }) => {
 });
 
 socket.on('session:replaced', () => setState({ replaced: true, room: null }));
+// Expulsado por el host: sin sala, la página vuelve a pedir entrar y el servidor explica por qué no.
+socket.on('room:kicked', () => setState({ room: null, chat: [], notices: [], error: null }));
 
 socket.on('room:state', applySnapshot);
 
@@ -177,7 +198,10 @@ socket.on('chat:message', (message) => {
   if (message.kind === 'system' && state.room?.phase === 'racing' && !me?.retired) pushNotice(message.text);
 });
 
-socket.on('race:countdown', ({ serverNow: sNow }) => setState({ clockOffset: sNow - Date.now() }));
+socket.on('race:countdown', ({ serverNow: sNow }) => {
+  setState({ clockOffset: sNow - Date.now() });
+  alertRaceStart();
+});
 
 socket.on('race:progress', ({ players }) => {
   if (!state.room) return;

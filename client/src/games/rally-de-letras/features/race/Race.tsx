@@ -45,6 +45,10 @@ export default function Race({ room, myId }: Props) {
 
   // Si volvemos a una carrera ya empezada (recarga), se retoma desde lo que confirmó el servidor.
   const [typing, setTyping] = useState(() => createTypingState(text, me?.progress ?? 0));
+  // Copia síncrona del estado: si llegan varias pulsaciones antes del siguiente render (teclas
+  // mantenidas, teclados de móvil), cada una se calcula sobre la anterior y no sobre un render viejo.
+  // El campo también se ajusta en el mismo evento (ver onChange).
+  const typingRef = useRef(typing);
   const view = viewOf(words, typing);
   const [finishedAt, setFinishedAt] = useState<number | null>(null);
   const [confirmLeave, setConfirmLeave] = useState(false);
@@ -178,8 +182,12 @@ export default function Race({ room, myId }: Props) {
             className={`${styles.input} ${typing.input.length > view.correctInWord ? styles.hasError : ''}`}
             value={typing.input}
             onChange={(e) => {
-              if (!started) return;
-              const next = applyInput(words, typing, e.target.value);
+              if (!started || viewOf(words, typingRef.current).finished) return;
+              const next = applyInput(words, typingRef.current, e.target.value);
+              typingRef.current = next;
+              // Al completar una palabra el campo se vacía: se hace ya, sin esperar al render, para que
+              // la siguiente tecla (si llega antes) no se sume a la palabra anterior.
+              if (e.target.value !== next.input) e.target.value = next.input;
               setTyping(next);
               const nextView = viewOf(words, next);
               const t = serverNow();

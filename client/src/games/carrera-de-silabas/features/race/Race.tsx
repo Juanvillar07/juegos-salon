@@ -1,17 +1,13 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  MAX_WORD_LENGTH,
-  checkWordShape,
-  normalizeWord,
-  type RoomState,
-} from '@typeracer/shared/carrera-de-silabas';
+import { MAX_WORD_LENGTH, checkWordShape, normalizeWord, type RoomState } from '@typeracer/shared/carrera-de-silabas';
 import Speedometer from '../../../rally-de-letras/components/Speedometer';
 import TrafficLight from '../../../rally-de-letras/components/TrafficLight';
 import { formatCountdown } from '../../../rally-de-letras/lib/format';
 import { PopNumber, SwapIn, useShake } from '../../../../shell/transitions';
 import ScoreTrack, { liveRanking } from '../../components/ScoreTrack';
-import { cancelRace, retireFromRace, submitWord } from '../../state/store';
+import { skipCost } from '../../lib/skip';
+import { cancelRace, retireFromRace, skipSyllable, submitWord } from '../../state/store';
 import { GAME_HOME } from '../../routes';
 import { useServerClock } from './useServerClock';
 import rally from '../../../rally-de-letras/features/race/Race.module.css';
@@ -93,6 +89,18 @@ export default function Race({ room, myId }: Props) {
     } else {
       show(false, res.error);
     }
+  };
+
+  // Pasar a la siguiente sílaba (botón o Shift+Enter), pagando los puntos que fije la sala.
+  const skip = async () => {
+    if (!started || pending || finished) return;
+    setPending(true);
+    const res = await skipSyllable();
+    setPending(false);
+    if (!res.ok) return show(false, res.error);
+    setDraft('');
+    show(true, `Pasaste · ${skipCost(room.settings.skipPoints)}`);
+    inputRef.current?.focus();
   };
 
   // Volver a la sala: dejamos de correr pero seguimos en ella (vemos el lobby hasta que termine).
@@ -179,27 +187,44 @@ export default function Race({ room, myId }: Props) {
               </div>
 
               <form className={styles.form} onSubmit={onSubmit}>
-                <div ref={shakeRef} className={`t-input ${styles.inputWrap}`}>
-                  <input
-                    ref={inputRef}
-                    className={`${styles.input} ${containsSyllable ? styles.contains : ''}`}
-                    value={draft}
-                    maxLength={MAX_WORD_LENGTH}
-                    onChange={(e) => {
-                      setDraft(e.target.value);
-                      clearShake();
-                    }}
-                    onPaste={block}
-                    onDrop={block}
-                    onContextMenu={block}
-                    disabled={!started || confirmLeave}
-                    placeholder={started ? 'escribe y pulsa Enter' : 'prepárate…'}
-                    autoComplete="off"
-                    autoCorrect="off"
-                    autoCapitalize="off"
-                    spellCheck={false}
-                    aria-label={`Palabra que contenga ${syllable}`}
-                  />
+                <div className={styles.entry}>
+                  <div ref={shakeRef} className={`t-input ${styles.inputWrap}`}>
+                    <input
+                      ref={inputRef}
+                      className={`${styles.input} ${containsSyllable ? styles.contains : ''}`}
+                      value={draft}
+                      maxLength={MAX_WORD_LENGTH}
+                      onChange={(e) => {
+                        setDraft(e.target.value);
+                        clearShake();
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && e.shiftKey) {
+                          e.preventDefault();
+                          void skip();
+                        }
+                      }}
+                      onPaste={block}
+                      onDrop={block}
+                      onContextMenu={block}
+                      disabled={!started || confirmLeave}
+                      placeholder={started ? 'escribe y pulsa Enter' : 'prepárate…'}
+                      autoComplete="off"
+                      autoCorrect="off"
+                      autoCapitalize="off"
+                      spellCheck={false}
+                      aria-label={`Palabra que contenga ${syllable}`}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    className={`btn ${styles.skip}`}
+                    onClick={() => void skip()}
+                    disabled={!started || pending || confirmLeave}
+                    title="Pasar a la siguiente sílaba (Shift + Enter)"
+                  >
+                    Pasar <span className={styles.cost}>{skipCost(room.settings.skipPoints)}</span>
+                  </button>
                 </div>
                 {/* Siempre ocupa su línea, para que la pista no salte al aparecer un aviso. */}
                 <span

@@ -55,10 +55,27 @@ export function registerRoomHandlers(socket: ClientSocket, ctx: RealtimeContext)
 
   socket.on('room:settings', (patch, ack) => {
     if (typeof ack !== 'function') return;
-    const res = manager.updateSettings(playerId, { target: patch?.target, timeLimitSec: patch?.timeLimitSec });
+    const res = manager.updateSettings(playerId, {
+      target: patch?.target,
+      timeLimitSec: patch?.timeLimitSec,
+      skipPoints: patch?.skipPoints,
+    });
     if (!res.ok) return ack(res);
     ack({ ok: true });
     ctx.broadcastState(res.room);
+  });
+
+  socket.on('room:kick', (payload, ack) => {
+    if (typeof ack !== 'function') return;
+    const res = manager.kick(playerId, payload?.playerId);
+    if (!res.ok) return ack(res);
+    const targetId = payload.playerId;
+    // Primero se le avisa (después ya no estará en el canal de la sala).
+    for (const s of ctx.io.sockets.values()) {
+      if (s.data.playerId === targetId) s.emit('room:kicked');
+    }
+    ctx.removePlayer(targetId, `${res.nickname} fue expulsado por el host`);
+    ack({ ok: true });
   });
 
   socket.on('room:leave', () => {

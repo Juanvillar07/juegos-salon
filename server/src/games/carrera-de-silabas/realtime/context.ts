@@ -121,8 +121,8 @@ export class RealtimeContext {
     });
   }
 
-  /** Saca definitivamente a un jugador de su sala y avisa a los demás. */
-  removePlayer(playerId: string): LeaveResult {
+  /** Saca definitivamente a un jugador de su sala y avisa a los demás (con `notice`, si se da). */
+  removePlayer(playerId: string, notice?: string): LeaveResult {
     const nickname = this.manager.getRoomOfPlayer(playerId)?.players.get(playerId)?.nickname;
     const result = this.manager.leaveRoom(playerId);
     const { room } = result;
@@ -136,7 +136,10 @@ export class RealtimeContext {
       this.autoStartTimers.clear(room.code);
       return result;
     }
-    this.announce(room.code, room.phase === 'racing' ? `${nickname} abandonó la carrera` : `${nickname} salió de la sala`);
+    this.announce(
+      room.code,
+      notice ?? (room.phase === 'racing' ? `${nickname} abandonó la carrera` : `${nickname} salió de la sala`),
+    );
     this.settleRace(room, result.race);
     return result;
   }

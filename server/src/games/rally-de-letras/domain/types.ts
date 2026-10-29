@@ -46,6 +46,8 @@ export interface Room {
   chatSeq: number;
   /** Salida automática programada (todos o la mayoría marcaron "Listo"). */
   autoStartAt: number | null;
+  /** Jugadores expulsados por el host: no pueden volver a entrar. */
+  banned: Set<string>;
 }
 
 /**
