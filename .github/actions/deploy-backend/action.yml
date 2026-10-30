@@ -1,0 +1,37 @@
+name: Desplegar backend
+description: >-
+  Construye la imagen del servidor en el runner y la despliega en Lightsail por SSH, abriendo el
+  puerto 22 a la IP del runner mientras dura. Requiere credenciales de AWS y terraform-init hecho.
+
+inputs:
+  ssh-key:
+    description: Clave SSH privada de despliegue (secreto DEPLOY_SSH_KEY).
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Clave SSH de despliegue
+      shell: bash
+      env:
+        DEPLOY_SSH_KEY: ${{ inputs.ssh-key }}
+      run: |
+        install -m 700 -d ~/.ssh
+        printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/salon_deploy
+        chmod 600 ~/.ssh/salon_deploy
+
+    - name: Abrir SSH a este runner
+      id: ssh
+      shell: bash
+      run: bash scripts/lightsail-ssh.sh open
+
+    - name: Desplegar
+      shell: bash
+      run: bash scripts/deploy-backend.sh
+      env:
+        BUILD_LOCALLY: '1'
+
+    - name: Cerrar SSH
+      if: always() && steps.ssh.outcome == 'success'
+      shell: bash
+      run: bash scripts/lightsail-ssh.sh close

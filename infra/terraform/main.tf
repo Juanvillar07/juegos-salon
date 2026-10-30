@@ -15,7 +15,11 @@ locals {
 
   # Sin dominio, CloudFront llega a la instancia por un nombre de sslip.io que resuelve a su IP
   # (1-2-3-4.sslip.io → 1.2.3.4): CloudFront no acepta IPs como origen y Lightsail no da nombre DNS.
-  api_origin_domain = "${replace(aws_lightsail_static_ip.api.ip_address, ".", "-")}.sslip.io"
+  # Con el backend apagado no hay IP: CloudFront se queda sin el origen de la API (ver frontend.tf).
+  static_ip         = one(aws_lightsail_static_ip.api[*].ip_address)
+  api_origin_domain = local.static_ip == null ? null : "${replace(local.static_ip, ".", "-")}.sslip.io"
+  # CloudFront solo lleva la API a la instancia sin dominio y con el backend encendido.
+  api_via_cloudfront = !local.use_domain && var.backend_enabled
 
   site_url = local.use_domain ? "https://${local.site_domain}" : "https://${aws_cloudfront_distribution.web.domain_name}"
   # Sin dominio, el cliente y la API comparten origen.

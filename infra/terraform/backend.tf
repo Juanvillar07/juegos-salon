@@ -1,5 +1,9 @@
 # Una sola instancia: las salas viven en memoria, así que no se puede repartir entre varias
 # sin antes mover el estado a Redis.
+#
+# Con backend_enabled = false (workflow "Encender / Apagar backend") se borran la instancia,
+# su IP y su firewall: Lightsail cobra igual una instancia detenida y una IP sin asociar.
+# No se pierde nada: user_data.sh y scripts/deploy-backend.sh la reconstruyen desde cero.
 
 resource "aws_lightsail_key_pair" "deploy" {
   name       = "${var.project_name}-deploy"
@@ -7,6 +11,7 @@ resource "aws_lightsail_key_pair" "deploy" {
 }
 
 resource "aws_lightsail_instance" "api" {
+  count             = var.backend_enabled ? 1 : 0
   name              = "${var.project_name}-api"
   availability_zone = "${var.aws_region}${var.availability_zone_suffix}"
   blueprint_id      = var.lightsail_blueprint_id
@@ -19,26 +24,29 @@ resource "aws_lightsail_instance" "api" {
 }
 
 resource "aws_lightsail_static_ip" "api" {
-  name = "${var.project_name}-api-ip"
+  count = var.backend_enabled ? 1 : 0
+  name  = "${var.project_name}-api-ip"
 }
 
 # La IP y el firewall se recrean junto con la instancia: al reemplazarla, el nombre no cambia
 # y Terraform no vería que la nueva nace sin IP estática y con el firewall por defecto.
 resource "aws_lightsail_static_ip_attachment" "api" {
-  static_ip_name = aws_lightsail_static_ip.api.name
-  instance_name  = aws_lightsail_instance.api.name
+  count          = var.backend_enabled ? 1 : 0
+  static_ip_name = aws_lightsail_static_ip.api[0].name
+  instance_name  = aws_lightsail_instance.api[0].name
 
   lifecycle {
-    replace_triggered_by = [aws_lightsail_instance.api.id]
+    replace_triggered_by = [aws_lightsail_instance.api[0].id]
   }
 }
 
 # Firewall de la instancia: reemplaza las reglas por defecto (que abren SSH a todo internet).
 resource "aws_lightsail_instance_public_ports" "api" {
-  instance_name = aws_lightsail_instance.api.name
+  count         = var.backend_enabled ? 1 : 0
+  instance_name = aws_lightsail_instance.api[0].name
 
   lifecycle {
-    replace_triggered_by = [aws_lightsail_instance.api.id]
+    replace_triggered_by = [aws_lightsail_instance.api[0].id]
   }
 
   port_info {
@@ -69,4 +77,25 @@ resource "aws_lightsail_instance_public_ports" "api" {
       ipv6_cidrs = ["::/0"]
     }
   }
+}
+
+# Direcciones anteriores a backend_enabled: sin estos bloques, el primer apply recrearía la instancia.
+moved {
+  from = aws_lightsail_instance.api
+  to   = aws_lightsail_instance.api[0]
+}
+
+moved {
+  from = aws_lightsail_static_ip.api
+  to   = aws_lightsail_static_ip.api[0]
+}
+
+moved {
+  from = aws_lightsail_static_ip_attachment.api
+  to   = aws_lightsail_static_ip_attachment.api[0]
+}
+
+moved {
+  from = aws_lightsail_instance_public_ports.api
+  to   = aws_lightsail_instance_public_ports.api[0]
 }

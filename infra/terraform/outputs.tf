@@ -8,6 +8,11 @@ output "api_url" {
   value       = local.api_url
 }
 
+output "backend_enabled" {
+  description = "Si el backend está encendido. deploy.yml lo lee para no encenderlo sin querer en un push."
+  value       = var.backend_enabled
+}
+
 output "caddy_address" {
   description = "Dirección de sitio de Caddy en la instancia (la usa scripts/deploy-backend.sh)."
   value       = local.caddy_address
@@ -19,17 +24,17 @@ output "client_origins" {
 }
 
 output "static_ip" {
-  description = "IP pública de la instancia de Lightsail."
-  value       = aws_lightsail_static_ip.api.ip_address
+  description = "IP pública de la instancia de Lightsail (vacía con el backend apagado)."
+  value       = local.static_ip == null ? "" : local.static_ip
 }
 
 output "lightsail_instance_name" {
   description = "Lo usa GitHub Actions para abrir el SSH a su IP mientras despliega."
-  value       = aws_lightsail_instance.api.name
+  value       = join("", aws_lightsail_instance.api[*].name)
 }
 
 output "ssh_command" {
-  value = "ssh -i ~/.ssh/salon_deploy ubuntu@${aws_lightsail_static_ip.api.ip_address}"
+  value = local.static_ip == null ? "" : "ssh -i ~/.ssh/salon_deploy ubuntu@${local.static_ip}"
 }
 
 output "s3_bucket" {

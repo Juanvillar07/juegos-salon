@@ -41,6 +41,16 @@ variable "create_hosted_zone" {
   default     = false
 }
 
+variable "backend_enabled" {
+  description = <<-EOT
+    false: se borran la instancia de Lightsail, su IP y su firewall para no pagarlos (el frontend sigue
+    arriba y avisa de que los juegos están en mantenimiento). Lo cambia el workflow "Encender / Apagar
+    backend"; no hace falta ponerlo en terraform.tfvars.
+  EOT
+  type        = bool
+  default     = true
+}
+
 variable "availability_zone_suffix" {
   description = "Zona de disponibilidad de la instancia dentro de la región (a, b, c…)."
   type        = string

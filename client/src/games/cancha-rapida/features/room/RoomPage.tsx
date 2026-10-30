@@ -8,6 +8,7 @@ import MatchView from '../match/MatchView';
 import Results from '../results/Results';
 import { GAME_HOME } from '../../routes';
 import Toasts from './Toasts';
+import { ConnectingCard } from '../../../../shell/MaintenanceNotice';
 
 export default function RoomPage() {
   const code = (useParams().code ?? '').toUpperCase();
@@ -64,7 +65,7 @@ export default function RoomPage() {
 
   if (sessionReady && !nickname) return <JoinForm code={code} onSubmit={setNickname} />;
 
-  return <div className="card muted">{sessionReady ? 'Entrando a la sala…' : 'Conectando con el servidor…'}</div>;
+  return <ConnectingCard sessionReady={sessionReady} />;
 }
 
 function Message({ title, children }: { title: string; children: ReactNode }) {

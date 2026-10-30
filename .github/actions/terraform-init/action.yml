@@ -16,6 +16,13 @@ inputs:
     required: false
     default: ''
 
+outputs:
+  backend-enabled:
+    description: >-
+      Si el backend está encendido según el estado actual (output backend_enabled; true si aún no existe).
+      Se pasa a plan y apply como -var backend_enabled=… para que no lo encienda ni apague sin querer.
+    value: ${{ steps.power.outputs.enabled }}
+
 runs:
   using: composite
   steps:
@@ -46,3 +53,12 @@ runs:
           -backend-config="region=$REGION" \
           -backend-config="encrypt=true" \
           -backend-config="use_lockfile=true"
+
+    - name: ¿Backend encendido?
+      id: power
+      shell: bash
+      working-directory: infra/terraform
+      run: |
+        enabled="$(terraform output -raw backend_enabled 2>/dev/null || echo true)"
+        echo "enabled=$enabled" >> "$GITHUB_OUTPUT"
+        echo "Backend encendido: $enabled"

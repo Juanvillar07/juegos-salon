@@ -38,11 +38,12 @@ resource "aws_route53_record" "site" {
 
 # Backend: api.<dominio> apunta a la IP estática de Lightsail. Caddy pide el certificado
 # a Let's Encrypt en cuanto este registro resuelve.
+# Con el backend apagado el registro se borra y el navegador no llega a ningún servidor.
 resource "aws_route53_record" "api" {
-  count   = local.use_domain ? 1 : 0
+  count   = local.use_domain && var.backend_enabled ? 1 : 0
   zone_id = local.zone_id
   name    = local.api_domain
   type    = "A"
   ttl     = 300
-  records = [aws_lightsail_static_ip.api.ip_address]
+  records = [local.static_ip]
 }

@@ -1,0 +1,79 @@
+# Enciende o apaga el backend a mano: Actions → Encender / Apagar backend → Run workflow.
+#   apagar:   borra la instancia de Lightsail, su IP y su firewall (Lightsail cobra igual una
+#             instancia detenida). El frontend sigue arriba y avisa de que los juegos están en
+#             mantenimiento. Con el backend apagado solo se pagan céntimos al mes.
+#   encender: los vuelve a crear y despliega el servidor de main (unos 5-10 minutos).
+# Por dentro es terraform apply con -var backend_enabled=…; el valor queda en el estado, y
+# deploy.yml lo respeta en cada push.
+name: Encender / Apagar backend
+
+on:
+  workflow_dispatch:
+    inputs:
+      accion:
+        description: Qué hacer con el backend
+        type: choice
+        options: [encender, apagar]
+        required: true
+
+permissions:
+  contents: read
+
+# El mismo grupo que deploy.yml: nunca corre a la vez que un despliegue.
+concurrency:
+  group: production
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+
+jobs:
+  power:
+    name: ${{ inputs.accion == 'encender' && 'Encender' || 'Apagar' }} backend
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - id: tf
+        uses: ./.github/actions/terraform-init
+        with:
+          state-bucket: ${{ vars.TF_STATE_BUCKET }}
+          state-key: ${{ vars.TF_STATE_KEY }}
+          region: ${{ env.AWS_REGION }}
+          tfvars: ${{ secrets.TERRAFORM_TFVARS }}
+      - name: terraform apply
+        working-directory: infra/terraform
+        env:
+          ENABLED: ${{ inputs.accion == 'encender' }}
+        run: terraform apply -input=false -auto-approve -no-color -var "backend_enabled=$ENABLED"
+      - name: Desplegar el servidor
+        if: inputs.accion == 'encender'
+        uses: ./.github/actions/deploy-backend
+        with:
+          ssh-key: ${{ secrets.DEPLOY_SSH_KEY }}
+      - name: Resumen
+        working-directory: infra/terraform
+        env:
+          ACCION: ${{ inputs.accion }}
+          ANTES: ${{ steps.tf.outputs.backend-enabled }}
+        run: |
+          site="$(terraform output -raw site_url)"
+          if [ "$ACCION" = encender ]; then
+            estado='🟢 Backend encendido'
+          else
+            estado='🔴 Backend apagado: el sitio muestra el aviso de mantenimiento'
+          fi
+          {
+            echo "### $estado"
+            echo
+            echo "- Sitio: $site"
+            echo "- Antes estaba encendido: $ANTES"
+          } >> "$GITHUB_STEP_SUMMARY"
