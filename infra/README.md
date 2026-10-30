@@ -181,9 +181,9 @@ Por dentro es `terraform apply -var backend_enabled=…`, así que el estado de 
 - **Costo:** solo el frontend y el estado.
   - Sin dominio, céntimos al mes: CloudFront entra en su capa gratuita permanente y S3 guarda unos pocos MB.
   - Con dominio, súmale 0,50 USD/mes de la zona de Route 53.
-- **La web sigue arriba** y avisa de que los juegos están **en mantenimiento**: una franja bajo la cabecera, y en las salas una tarjeta en vez de «Conectando…».
-  - El aviso sale de `client/src/shell/serverStatus.ts`, que pide `<api_url>/health`. Mientras no responda, reintenta cada 30 s.
-  - Al encender, el aviso desaparece solo, sin recargar.
+- **La web sigue arriba**, pero todo el sitio muestra una pantalla de **mantenimiento**: no se ven el portal ni los juegos, así que nadie puede entrar a una sala.
+  - Lo decide `client/src/shell/serverStatus.ts`, que pide `<api_url>/health`. Mientras no responda, reintenta cada 30 s.
+  - Al encender, la pantalla desaparece sola y vuelve el sitio, sin recargar.
 - **`deploy.yml` lo respeta:**
   - Lee el output `backend_enabled` del estado y se lo pasa a `plan` y a `apply`, así que un push a `main` no lo enciende.
   - El job del backend se omite y lo indica en el resumen. Al encenderlo se publica lo último de `main`.

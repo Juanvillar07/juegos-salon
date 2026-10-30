@@ -112,7 +112,7 @@ Frontend en S3 + CloudFront, backend en Lightsail (Docker: Node + Caddy con HTTP
 - **CI/CD con GitHub Actions:**
   - Cada pull request pasa tests, build, imagen Docker y validación de Terraform. Si toca la infraestructura, también `terraform plan`.
   - Cada push a `main` despliega solo lo que cambió: Terraform, backend y/o frontend.
-- **Encender / apagar el backend** desde **Actions → Encender / Apagar backend**. Apagado no se paga la instancia (queda en céntimos al mes) y la web muestra un aviso de mantenimiento.
+- **Encender / apagar el backend** desde **Actions → Encender / Apagar backend**. Apagado no se paga la instancia (queda en céntimos al mes) y la web entera muestra una pantalla de mantenimiento.
 
 Guía paso a paso: [infra/README.md](infra/README.md).
 

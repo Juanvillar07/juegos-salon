@@ -9,7 +9,6 @@ import Race from '../race/Race';
 import Results from '../results/Results';
 import { GAME_HOME } from '../../routes';
 import Toasts from './Toasts';
-import { ConnectingCard } from '../../../../shell/MaintenanceNotice';
 
 export default function RoomPage() {
   const code = (useParams().code ?? '').toUpperCase();
@@ -76,7 +75,7 @@ export default function RoomPage() {
 
   if (sessionReady && !nickname) return <JoinForm code={code} onSubmit={setNickname} />;
 
-  return <ConnectingCard sessionReady={sessionReady} />;
+  return <div className="card muted">{sessionReady ? 'Entrando a la sala…' : 'Conectando con el servidor…'}</div>;
 }
 
 function Message({ title, children }: { title: string; children: ReactNode }) {

@@ -4,7 +4,8 @@ import PortalHome from '../portal/PortalHome';
 import { gameForPath, type GameEntry } from '../portal/games';
 import { HEADER_SLOT_ID } from './headerSlot';
 import { BackIcon } from './icons';
-import MaintenanceNotice from './MaintenanceNotice';
+import MaintenanceScreen from './MaintenanceScreen';
+import { useServerStatus } from './serverStatus';
 import ThemeToggle from './ThemeToggle';
 import styles from './App.module.css';
 
@@ -30,7 +31,11 @@ function backTarget(pathname: string, game: GameEntry | undefined): string | nul
 
 export default function App() {
   const { pathname } = useLocation();
-  const game = gameForPath(pathname);
+  // Con el servidor apagado, todo el sitio es la pantalla de mantenimiento: sin portal ni juegos.
+  // Mientras se comprueba no se monta nada, para que ningún juego llegue a abrir su conexión.
+  const serverStatus = useServerStatus();
+  const maintenance = serverStatus === 'mantenimiento';
+  const game = maintenance ? undefined : gameForPath(pathname);
   const back = backTarget(pathname, game);
 
   return (
@@ -67,18 +72,21 @@ export default function App() {
           <ThemeToggle />
         </div>
       </header>
-      <MaintenanceNotice />
       <main className={styles.main}>
-        <Suspense fallback={<p className="muted">Cargando…</p>}>
-          <Routes>
-            <Route path="/" element={<PortalHome />} />
-            <Route path="/rally-de-letras/*" element={<RallyDeLetras />} />
-            <Route path="/carrera-de-silabas/*" element={<CarreraDeSilabas />} />
-            <Route path="/cancha-rapida/*" element={<CanchaRapida />} />
-            <Route path="/sala/:code" element={<LegacyRoomRedirect />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Suspense>
+        {maintenance ? (
+          <MaintenanceScreen />
+        ) : serverStatus === 'comprobando' ? null : (
+          <Suspense fallback={<p className="muted">Cargando…</p>}>
+            <Routes>
+              <Route path="/" element={<PortalHome />} />
+              <Route path="/rally-de-letras/*" element={<RallyDeLetras />} />
+              <Route path="/carrera-de-silabas/*" element={<CarreraDeSilabas />} />
+              <Route path="/cancha-rapida/*" element={<CanchaRapida />} />
+              <Route path="/sala/:code" element={<LegacyRoomRedirect />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Suspense>
+        )}
       </main>
     </div>
   );
