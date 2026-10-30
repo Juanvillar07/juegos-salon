@@ -17,6 +17,8 @@ navegador ──┤
                                           └─ Caddy :443 (Let's Encrypt) ─► Node :3001 (Socket.IO)
 ```
 
+Con dominio, `www.<dominio>` y la URL de CloudFront (`xxxx.cloudfront.net`) redirigen con un 301 al dominio, conservando la ruta. Así hay una sola URL. Además, desde `cloudfront.net` la web no podría conectarse, porque el backend solo acepta peticiones (CORS) que vienen del dominio.
+
 Sin dominio (`domain_name` vacío, el valor por defecto):
 
 ```
