@@ -29,7 +29,8 @@ jobs:
         with:
           role-to-assume: ${{ vars.AWS_PLAN_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
-      - uses: ./.github/actions/terraform-init
+      - id: tf
+        uses: ./.github/actions/terraform-init
         with:
           state-bucket: ${{ vars.TF_STATE_BUCKET }}
           state-key: ${{ vars.TF_STATE_KEY }}
@@ -38,8 +39,11 @@ jobs:
       - name: terraform plan
         working-directory: infra/terraform
         # -lock=false: el rol de solo lectura no puede escribir el bloqueo, y el plan no cambia nada.
+        # backend_enabled: el de ahora, para que el plan no muestre encender o apagar el backend.
+        env:
+          ENABLED: ${{ steps.tf.outputs.backend-enabled }}
         run: |
-          terraform plan -input=false -lock=false -no-color -out=tfplan
+          terraform plan -input=false -lock=false -no-color -out=tfplan -var "backend_enabled=$ENABLED"
           {
             echo '### Terraform plan'
             echo '```'

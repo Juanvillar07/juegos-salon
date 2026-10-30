@@ -149,9 +149,10 @@ resource "aws_cloudfront_distribution" "web" {
 
   # Sin dominio, la API va por esta misma distribución hasta Caddy (HTTP, puerto 80) en la instancia.
   # El tramo CloudFront → instancia no va cifrado; con dominio, el navegador habla HTTPS
-  # directamente con api.<dominio> y este origen no existe.
+  # directamente con api.<dominio> y este origen no existe. Con el backend apagado tampoco:
+  # /socket.io/* y /health caen en S3, devuelven index.html y el cliente avisa del mantenimiento.
   dynamic "origin" {
-    for_each = local.use_domain ? [] : [local.api_origin_domain]
+    for_each = local.api_via_cloudfront ? [local.api_origin_domain] : []
     content {
       origin_id   = "api"
       domain_name = origin.value
@@ -168,7 +169,7 @@ resource "aws_cloudfront_distribution" "web" {
   }
 
   dynamic "ordered_cache_behavior" {
-    for_each = local.use_domain ? [] : ["/socket.io/*", "/health"]
+    for_each = local.api_via_cloudfront ? ["/socket.io/*", "/health"] : []
     content {
       path_pattern             = ordered_cache_behavior.value
       target_origin_id         = "api"

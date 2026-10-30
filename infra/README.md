@@ -49,6 +49,7 @@ El código se despliega con `scripts/deploy-backend.sh` y `scripts/deploy-fronte
 | `ci.yml` | Cada pull request (y antes de cada despliegue) | `npm test` y `npm run build`; construye la imagen Docker y comprueba que responde `/health`; `terraform fmt` y `validate`; `shellcheck` de los scripts |
 | `terraform-plan.yml` | Pull requests que tocan `infra/terraform/` | `terraform plan` con un rol de solo lectura; el plan queda en el resumen del job |
 | `deploy.yml` | Cada push a `main` (o a mano desde **Actions → Deploy → Run workflow**) | Corre CI y despliega solo lo que cambió (ver abajo) |
+| `power.yml` | A mano: **Actions → Encender / Apagar backend → Run workflow** | Apaga o enciende el backend para no pagarlo cuando no se usa (ver [Encender y apagar el backend](#encender-y-apagar-el-backend)) |
 
 Qué despliega `deploy.yml` según lo que cambió:
 
@@ -161,6 +162,32 @@ Sube los cambios a `main`: `deploy.yml` se encarga de todo. A mano también func
 - **Cambió la infraestructura:** `terraform plan` y `terraform apply` en `infra/terraform`. Si cambiaste `terraform.tfvars`, actualiza también el secreto `TERRAFORM_TFVARS`.
 
 Al redesplegar el backend, el contenedor se reinicia en unos segundos y las salas en curso se pierden, porque viven en memoria. Por eso `deploy.yml` solo lo redespliega cuando cambia algo que le afecta.
+
+## Encender y apagar el backend
+
+Casi todo el gasto es la instancia de Lightsail. Lightsail cobra igual una instancia **detenida** y una IP estática sin asociar, así que apagar el backend las **borra**. No se pierde nada: las salas viven en memoria y la instancia se reconstruye desde cero.
+
+En GitHub, ve a **Actions → Encender / Apagar backend → Run workflow** y elige una acción:
+
+| Acción | Qué hace | Tarda |
+|---|---|---|
+| `apagar` | Borra la instancia, su IP y su firewall. Sin dominio, también quita de CloudFront el origen de la API. Con dominio, borra el registro `api`. | ~3–5 min (CloudFront) |
+| `encender` | Los vuelve a crear y despliega el servidor con el código actual de `main` | ~5–10 min |
+
+Por dentro es `terraform apply -var backend_enabled=…`, así que el estado de Terraform siempre coincide con lo que hay en AWS. Si el environment `production` pide aprobación, también la pedirá aquí.
+
+**Con el backend apagado:**
+
+- **Costo:** solo el frontend y el estado.
+  - Sin dominio, céntimos al mes: CloudFront entra en su capa gratuita permanente y S3 guarda unos pocos MB.
+  - Con dominio, súmale 0,50 USD/mes de la zona de Route 53.
+- **La web sigue arriba** y avisa de que los juegos están **en mantenimiento**: una franja bajo la cabecera, y en las salas una tarjeta en vez de «Conectando…».
+  - El aviso sale de `client/src/shell/serverStatus.ts`, que pide `<api_url>/health`. Mientras no responda, reintenta cada 30 s.
+  - Al encender, el aviso desaparece solo, sin recargar.
+- **`deploy.yml` lo respeta:**
+  - Lee el output `backend_enabled` del estado y se lo pasa a `plan` y a `apply`, así que un push a `main` no lo enciende.
+  - El job del backend se omite y lo indica en el resumen. Al encenderlo se publica lo último de `main`.
+- **A mano:** un `terraform apply` sin más lo **enciende**, porque el valor por defecto es `true`. Para mantenerlo apagado usa `terraform apply -var backend_enabled=false`. Mientras esté apagado, `scripts/deploy-backend.sh` no tiene adónde conectarse.
 
 ## Si GitHub Actions no puede entrar en AWS
 

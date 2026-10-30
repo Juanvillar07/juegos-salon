@@ -3,6 +3,7 @@
 #   server/, shared/, Dockerfile… → backend (imagen Docker a Lightsail)
 #   client/, shared/…           → frontend (S3 + CloudFront)
 # También se puede lanzar a mano (Actions → Deploy → Run workflow) eligiendo qué desplegar.
+# Si el backend está apagado (power.yml), Terraform lo mantiene apagado y no se despliega.
 name: Deploy
 
 on:
@@ -90,7 +91,8 @@ jobs:
         with:
           role-to-assume: ${{ vars.AWS_PLAN_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
-      - uses: ./.github/actions/terraform-init
+      - id: tf
+        uses: ./.github/actions/terraform-init
         with:
           state-bucket: ${{ vars.TF_STATE_BUCKET }}
           state-key: ${{ vars.TF_STATE_KEY }}
@@ -98,8 +100,10 @@ jobs:
           tfvars: ${{ secrets.TERRAFORM_TFVARS }}
       - name: terraform plan
         working-directory: infra/terraform
+        env:
+          ENABLED: ${{ steps.tf.outputs.backend-enabled }}
         run: |
-          terraform plan -input=false -lock=false -no-color -out=tfplan
+          terraform plan -input=false -lock=false -no-color -out=tfplan -var "backend_enabled=$ENABLED"
           {
             echo '### Terraform plan'
             echo '```'
@@ -123,14 +127,17 @@ jobs:
         with:
           role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
-      - uses: ./.github/actions/terraform-init
+      - id: tf
+        uses: ./.github/actions/terraform-init
         with:
           state-bucket: ${{ vars.TF_STATE_BUCKET }}
           state-key: ${{ vars.TF_STATE_KEY }}
           region: ${{ env.AWS_REGION }}
           tfvars: ${{ secrets.TERRAFORM_TFVARS }}
-      - run: terraform apply -input=false -auto-approve -no-color
+      - run: terraform apply -input=false -auto-approve -no-color -var "backend_enabled=$ENABLED"
         working-directory: infra/terraform
+        env:
+          ENABLED: ${{ steps.tf.outputs.backend-enabled }}
 
   backend:
     name: Backend
@@ -151,28 +158,21 @@ jobs:
         with:
           role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
-      - uses: ./.github/actions/terraform-init
+      - id: tf
+        uses: ./.github/actions/terraform-init
         with:
           state-bucket: ${{ vars.TF_STATE_BUCKET }}
           state-key: ${{ vars.TF_STATE_KEY }}
           region: ${{ env.AWS_REGION }}
-      - name: Clave SSH de despliegue
-        env:
-          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+      - name: Backend apagado
+        if: steps.tf.outputs.backend-enabled != 'true'
         run: |
-          install -m 700 -d ~/.ssh
-          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/salon_deploy
-          chmod 600 ~/.ssh/salon_deploy
-      - id: ssh
-        name: Abrir SSH a este runner
-        run: bash scripts/lightsail-ssh.sh open
-      - name: Desplegar
-        run: bash scripts/deploy-backend.sh
-        env:
-          BUILD_LOCALLY: '1'
-      - name: Cerrar SSH
-        if: always() && steps.ssh.outcome == 'success'
-        run: bash scripts/lightsail-ssh.sh close
+          echo '### 🔴 Backend apagado: no se despliega' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Al encenderlo (Actions → Encender / Apagar backend) se publica el código de main.' >> "$GITHUB_STEP_SUMMARY"
+      - if: steps.tf.outputs.backend-enabled == 'true'
+        uses: ./.github/actions/deploy-backend
+        with:
+          ssh-key: ${{ secrets.DEPLOY_SSH_KEY }}
 
   frontend:
     name: Frontend

@@ -4,6 +4,7 @@ import PortalHome from '../portal/PortalHome';
 import { gameForPath, type GameEntry } from '../portal/games';
 import { HEADER_SLOT_ID } from './headerSlot';
 import { BackIcon } from './icons';
+import MaintenanceNotice from './MaintenanceNotice';
 import ThemeToggle from './ThemeToggle';
 import styles from './App.module.css';
 
@@ -66,6 +67,7 @@ export default function App() {
           <ThemeToggle />
         </div>
       </header>
+      <MaintenanceNotice />
       <main className={styles.main}>
         <Suspense fallback={<p className="muted">Cargando…</p>}>
           <Routes>
