@@ -1,0 +1,38 @@
+.screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  /* Alto de la ventana menos la cabecera y el relleno de main (24 + 20 px con data-fit): sin scroll. */
+  min-height: calc(100vh - 76px - 44px);
+  text-align: center;
+}
+
+.icon {
+  font-size: 3.5rem;
+  line-height: 1;
+}
+
+.title {
+  font-size: clamp(2.2rem, 6vw, 3.6rem);
+  font-weight: 600;
+  letter-spacing: -0.045em;
+  line-height: 1;
+}
+
+.message {
+  max-width: 480px;
+  font-size: 1.1rem;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.hint {
+  padding: 8px 14px;
+  border: 1px solid var(--warn);
+  border-radius: var(--radius-sm);
+  background: var(--warn-bg);
+  color: var(--warn);
+  font-size: 0.9rem;
+}
