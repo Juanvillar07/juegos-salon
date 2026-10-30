@@ -1,11 +1,15 @@
 // CloudFront Function (viewer-request).
-// 1. www.${site_domain} -> ${site_domain} (301), para tener una sola URL canónica.
+// 1. Con dominio, cualquier otro host -> ${site_domain} (301), para tener una sola URL canónica:
+//    www.${site_domain} y la URL de CloudFront (xxxx.cloudfront.net). En esta última la web no
+//    funcionaría: el backend solo acepta (CORS) peticiones que vienen del dominio.
 // 2. Rutas sin extensión (/rally-de-letras/sala/ABCDE) -> /index.html: las resuelve React Router.
+var SITE_DOMAIN = '${site_domain}'; // vacío sin dominio: se sirve en la URL de CloudFront tal cual
+
 function handler(event) {
   var request = event.request;
   var host = request.headers.host ? request.headers.host.value : '';
 
-  if (host.indexOf('www.') === 0) {
+  if (SITE_DOMAIN && host !== SITE_DOMAIN) {
     var qs = request.querystring && Object.keys(request.querystring).length
       ? '?' + Object.keys(request.querystring).map(function (k) {
           return k + '=' + request.querystring[k].value;
@@ -14,7 +18,7 @@ function handler(event) {
     return {
       statusCode: 301,
       statusDescription: 'Moved Permanently',
-      headers: { location: { value: 'https://${site_domain}' + request.uri + qs } },
+      headers: { location: { value: 'https://' + SITE_DOMAIN + request.uri + qs } },
     };
   }
 
