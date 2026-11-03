@@ -1,0 +1,136 @@
+/* Skeletons de carga: la silueta de la pantalla que viene, con un brillo que la recorre. */
+
+/* Aparece con un pequeño retraso: si la carga es instantánea ni se llega a ver (sin parpadeo). */
+.skeleton {
+  animation: appear var(--duration-medium) var(--ease-out) 150ms both;
+}
+
+@keyframes appear {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Un "hueso": bloque gris con una franja que se desplaza. Base y franja se mezclan con el borde
+   fuerte: en el tema claro quedan algo más oscuras que el fondo y en el oscuro algo más claras,
+   así se distinguen en los dos sin molestar. */
+.bone {
+  --bone-base: color-mix(in srgb, var(--surface-2), var(--border-strong) 35%);
+  --bone-shine: color-mix(in srgb, var(--surface-2), var(--border-strong) 80%);
+  display: block;
+  flex-shrink: 0;
+  max-width: 100%;
+  border-radius: 8px;
+  background: linear-gradient(100deg, var(--bone-base) 40%, var(--bone-shine) 50%, var(--bone-base) 60%);
+  background-size: 300% 100%;
+  animation: shimmer 1.6s linear infinite;
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: 0 0;
+  }
+}
+
+/* Solo para lectores de pantalla: "Cargando…" sin que se vea. */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.spread {
+  justify-content: space-between;
+}
+
+.grow {
+  flex: 1;
+}
+
+/* Tarjeta con borde, como las de ajustes o las de crear/unirse. */
+.card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.settingsRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+}
+
+.settingsRow + .settingsRow {
+  border-top: 1px solid var(--border);
+}
+
+.playerRow {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.teams {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.teamColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.models {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.controlRow {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  align-items: center;
+  gap: 12px;
+}
+
+/* El chat del skeleton ocupa todo el alto que sobra en la columna lateral. */
+.fill {
+  flex: 1;
+  min-height: 160px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton,
+  .bone {
+    animation: none;
+  }
+}

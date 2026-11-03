@@ -9,6 +9,7 @@ import Race from '../race/Race';
 import Results from '../results/Results';
 import { GAME_HOME } from '../../routes';
 import Toasts from './Toasts';
+import { RoomSkeleton } from '../../../../shell/skeletons/Skeletons';
 
 export default function RoomPage() {
   const code = (useParams().code ?? '').toUpperCase();
@@ -75,7 +76,8 @@ export default function RoomPage() {
 
   if (sessionReady && !nickname) return <JoinForm code={code} onSubmit={setNickname} />;
 
-  return <div className="card muted">{sessionReady ? 'Entrando a la sala…' : 'Conectando con el servidor…'}</div>;
+  // Conectando con el servidor o entrando a la sala: la silueta de la sala, sin textos.
+  return <RoomSkeleton variant="grid" />;
 }
 
 function Message({ title, children }: { title: string; children: ReactNode }) {
