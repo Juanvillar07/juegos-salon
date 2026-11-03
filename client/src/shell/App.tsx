@@ -5,6 +5,7 @@ import { gameForPath, type GameEntry } from '../portal/games';
 import { HEADER_SLOT_ID } from './headerSlot';
 import { BackIcon } from './icons';
 import MaintenanceScreen from './MaintenanceScreen';
+import { RouteSkeleton } from './skeletons/Skeletons';
 import { useServerStatus } from './serverStatus';
 import ThemeToggle from './ThemeToggle';
 import styles from './App.module.css';
@@ -32,7 +33,8 @@ function backTarget(pathname: string, game: GameEntry | undefined): string | nul
 export default function App() {
   const { pathname } = useLocation();
   // Con el servidor apagado, todo el sitio es la pantalla de mantenimiento: sin portal ni juegos.
-  // Mientras se comprueba no se monta nada, para que ningún juego llegue a abrir su conexión.
+  // Mientras se comprueba solo se ve el skeleton (no se monta ningún juego, así ninguno llega a
+  // abrir su conexión); también mientras se descarga el código de un juego.
   const serverStatus = useServerStatus();
   const maintenance = serverStatus === 'mantenimiento';
   const game = maintenance ? undefined : gameForPath(pathname);
@@ -75,8 +77,10 @@ export default function App() {
       <main className={styles.main}>
         {maintenance ? (
           <MaintenanceScreen />
-        ) : serverStatus === 'comprobando' ? null : (
-          <Suspense fallback={<p className="muted">Cargando…</p>}>
+        ) : serverStatus === 'comprobando' ? (
+          <RouteSkeleton pathname={pathname} />
+        ) : (
+          <Suspense fallback={<RouteSkeleton pathname={pathname} />}>
             <Routes>
               <Route path="/" element={<PortalHome />} />
               <Route path="/rally-de-letras/*" element={<RallyDeLetras />} />
