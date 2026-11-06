@@ -41,6 +41,8 @@ export function registerRoomHandlers(socket: ClientSocket, ctx: RealtimeContext)
     const res = manager.updateSettings(playerId, {
       scoreLimit: patch?.scoreLimit,
       timeLimitMin: patch?.timeLimitMin,
+      chargedShot: patch?.chargedShot,
+      tiebreak: patch?.tiebreak,
     });
     if (!res.ok) return ack(res);
     ack({ ok: true });

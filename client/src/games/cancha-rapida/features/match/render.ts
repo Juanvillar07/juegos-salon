@@ -189,7 +189,7 @@ function drawPlayer(
   const ink = kitInk(info.kit.primary);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font = '700 12px system-ui, sans-serif';
+  ctx.font = '700 10.5px system-ui, sans-serif';
   ctx.lineWidth = 3;
   ctx.strokeStyle = ink === '#ffffff' ? 'rgba(21, 21, 23, 0.55)' : 'rgba(255, 255, 255, 0.6)';
   ctx.strokeText(info.avatar, d.x, d.y + 0.5);

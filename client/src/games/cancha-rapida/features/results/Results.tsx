@@ -1,5 +1,6 @@
-import { TEAM_NAMES, type RoomState } from '@typeracer/shared/cancha-rapida';
+import { TEAM_NAMES, type MatchResult, type RoomState, type Side } from '@typeracer/shared/cancha-rapida';
 import KitBadge from '../../components/KitBadge';
+import PenaltyStrip from '../match/PenaltyStrip';
 import ExitRoomLink from '../../../../shell/ExitRoomLink';
 import { revealDelay, useReveal } from '../../../../shell/transitions';
 import Chat from '../chat/Chat';
@@ -14,7 +15,19 @@ interface Props {
   isHost: boolean;
 }
 
-/** Resultado del partido: ganador, marcador y cada gol con su autor y su minuto. */
+/** Cómo se rompió el empate, si hizo falta: "Ganó Local 3–2 en los penaltis". */
+function describeTiebreak(result: MatchResult): string | null {
+  if (!result.winner) return null;
+  if (result.tiebreak === 'goldenGoal') return `${TEAM_NAMES[result.winner]} ganó con gol de oro en la prórroga`;
+  const shots = result.penalties;
+  if (result.tiebreak === 'penalties' && shots) {
+    const goals = (team: Side) => shots[team].filter(Boolean).length;
+    return `${TEAM_NAMES[result.winner]} ganó ${goals('red')}–${goals('blue')} en los penaltis`;
+  }
+  return null;
+}
+
+/** Resultado del partido: ganador, marcador, la tanda de penaltis y cada gol con su autor y su minuto. */
 export default function Results({ room, myId, isHost }: Props) {
   const reveal = useReveal();
   const result = room.result;
@@ -28,6 +41,7 @@ export default function Results({ room, myId, isHost }: Props) {
         : `Ganó ${TEAM_NAMES[result.winner]}`
     : 'Empate';
   const host = room.players.find((p) => p.id === room.hostId);
+  const tiebreakLine = describeTiebreak(result);
 
   return (
     <div className={styles.layout} data-fit>
@@ -39,6 +53,11 @@ export default function Results({ room, myId, isHost }: Props) {
           {result.winner && <KitBadge kit={room.kits[result.winner]} size={44} />}
           {headline}
         </h1>
+        {tiebreakLine && (
+          <p className={`${styles.tiebreak} t-stagger-line`} style={revealDelay(1)}>
+            {tiebreakLine}
+          </p>
+        )}
 
         <div className={`${styles.board} t-stagger-line`} style={revealDelay(2)}>
           {(['red', 'blue'] as const).map((team) => (
@@ -60,6 +79,13 @@ export default function Results({ room, myId, isHost }: Props) {
             </div>
           ))}
         </div>
+
+        {result.penalties && (
+          <section className={`${styles.timeline} t-stagger-line`} style={revealDelay(3)}>
+            <span className="label">Penaltis</span>
+            <PenaltyStrip shots={result.penalties} kits={room.kits} alignStart />
+          </section>
+        )}
 
         <section className={`${styles.timeline} t-stagger-line`} style={revealDelay(3)}>
           <span className="label">Goles</span>

@@ -14,8 +14,10 @@ import {
   SPECTATOR_COLOR,
   TEAM_NAMES,
   isValidKeys,
+  validateChargedShot,
   validateKit,
   validateScoreLimit,
+  validateTiebreak,
   validateTimeLimit,
   type MatchResult,
   type RoomSettings,
@@ -30,6 +32,8 @@ import type { LeaveResult, Player, Result, Room } from './types.js';
 
 export interface RoomManagerOptions {
   now?: () => number;
+  /** Azar para repartir equipos (inyectable en los tests). */
+  random?: () => number;
   generateCode?: () => string;
   /** Cuenta atrás antes del saque inicial. */
   countdownMs?: number;
@@ -51,11 +55,13 @@ export class RoomManager {
   private rooms = new Map<string, Room>();
   private playerRoom = new Map<string, string>();
   private now: () => number;
+  private random: () => number;
   private generateCode: () => string;
   private countdownMs: number;
 
   constructor(options: RoomManagerOptions = {}) {
     this.now = options.now ?? Date.now;
+    this.random = options.random ?? Math.random;
     this.generateCode = options.generateCode ?? generateRoomCode;
     this.countdownMs = options.countdownMs ?? COUNTDOWN_MS;
   }
@@ -240,6 +246,16 @@ export class RoomManager {
       if (error) return { ok: false, error };
       next.timeLimitMin = patch.timeLimitMin;
     }
+    if (patch.tiebreak !== undefined) {
+      const error = validateTiebreak(patch.tiebreak);
+      if (error) return { ok: false, error };
+      next.tiebreak = patch.tiebreak;
+    }
+    if (patch.chargedShot !== undefined) {
+      const error = validateChargedShot(patch.chargedShot);
+      if (error) return { ok: false, error };
+      next.chargedShot = patch.chargedShot;
+    }
     room.settings = next;
     return { ok: true, room };
   }
@@ -289,6 +305,39 @@ export class RoomManager {
       return { ok: false, error: `El equipo ${TEAM_NAMES[next]} está completo (máximo ${MAX_PER_TEAM})` };
     }
     player.team = next;
+    return { ok: true, room };
+  }
+
+  /**
+   * El host reparte a los que están en algún equipo (los espectadores siguen mirando):
+   * - random: al azar, mitad y mitad;
+   * - balanced: por su récord en la sala (victorias y goles), alternando como en un "draft"
+   *   (1º a un equipo, 2º y 3º al otro…) para que los mejores no queden juntos.
+   */
+  shuffleTeams(hostId: string, mode: unknown): Result<{ room: Room }> {
+    const room = this.getRoomOfPlayer(hostId);
+    if (!room) return { ok: false, error: 'No estás en ninguna sala' };
+    if (room.hostId !== hostId) return { ok: false, error: 'Solo el host puede repartir los equipos' };
+    if (room.phase === 'playing') return { ok: false, error: 'Los equipos se cambian entre partidos' };
+    if (mode !== 'random' && mode !== 'balanced') return { ok: false, error: 'Forma de repartir no válida' };
+    const pool = [...room.players.values()].filter((p) => p.team !== 'spectator');
+    if (pool.length < 2) return { ok: false, error: 'Hacen falta al menos 2 jugadores en los equipos' };
+
+    // Primero al azar (también desempata a los de igual récord), luego por récord si se pide.
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(this.random() * (i + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    if (mode === 'balanced') {
+      const rating = (p: Player) => p.record.wins * 3 + p.record.goals;
+      pool.sort((a, b) => rating(b) - rating(a));
+    }
+    // Reparto en serpiente: rojo, azul, azul, rojo, rojo, azul… (al azar da lo mismo que alternar).
+    const first: Side = this.random() < 0.5 ? 'red' : 'blue';
+    const second: Side = first === 'red' ? 'blue' : 'red';
+    pool.forEach((p, i) => {
+      p.team = i % 4 === 0 || i % 4 === 3 ? first : second;
+    });
     return { ok: true, room };
   }
 
@@ -349,13 +398,24 @@ export class RoomManager {
     const match = room?.match;
     if (!room || !match || room.phase !== 'playing') return null;
     const { red, blue } = match.score;
+    const winner = match.penaltyWinner ?? (red === blue ? null : red > blue ? 'red' : 'blue');
     room.result = {
       score: { ...match.score },
-      winner: red === blue ? null : red > blue ? 'red' : 'blue',
+      winner,
       goals: [...match.goals],
       durationMs: match.clockMs,
       players: match.players.map((p) => ({ ...p })),
+      tiebreak: match.stage === 'regular' ? null : match.stage,
+      penalties: match.penaltyState ? { ...match.penaltyState.shots } : null,
     };
+    // Récord de la sala: cuenta a quienes jugaron y siguen en ella.
+    for (const p of match.players) {
+      const player = room.players.get(p.id);
+      if (!player) continue;
+      player.record.played++;
+      if (winner === p.team) player.record.wins++;
+      player.record.goals += match.goals.filter((g) => g.scorerId === p.id && !g.ownGoal).length;
+    }
     room.phase = 'finished';
     room.match = null;
     room.startAt = null;
@@ -395,12 +455,15 @@ export class RoomManager {
         team: p.team,
         slot: match?.slots.get(p.id) ?? null,
         goals: goals.filter((g) => g.scorerId === p.id && !g.ownGoal).length,
+        record: { ...p.record },
       })),
       settings: room.settings,
       kits: { red: { ...room.kits.red }, blue: { ...room.kits.blue } },
       score: match ? { ...match.score } : (room.result?.score ?? { red: 0, blue: 0 }),
       goals,
       startAt: room.startAt,
+      stage: match?.stage ?? null,
+      penalties: match?.penaltyState ?? null,
       result: room.result,
     };
   }
@@ -415,7 +478,14 @@ export class RoomManager {
     const smaller: Side = blue < red ? 'blue' : 'red';
     const team: Team =
       room.phase === 'playing' || this.teamSize(room, smaller) >= MAX_PER_TEAM ? 'spectator' : smaller;
-    room.players.set(id, { id, nickname, status: 'connected', team, lastChatAt: null });
+    room.players.set(id, {
+      id,
+      nickname,
+      status: 'connected',
+      team,
+      record: { played: 0, wins: 0, goals: 0 },
+      lastChatAt: null,
+    });
     this.playerRoom.set(id, room.code);
   }
 }

@@ -19,6 +19,9 @@ import styles from './TeamsPanel.module.css';
 /** Columnas de izquierda a derecha, como en la cancha: rojos atacan hacia la derecha. */
 const COLUMNS: Team[] = ['red', 'spectator', 'blue'];
 
+/** "1 partido", "3 partidos". */
+const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
 interface Props {
   room: RoomState;
   myId: string;
@@ -143,7 +146,14 @@ export default function TeamsPanel({ room, myId, isHost }: Props) {
                       setDragId(p.id);
                     }}
                     onDragEnd={endDrag}
-                    title={draggable ? 'Arrastra a otra columna para cambiar de equipo' : undefined}
+                    title={[
+                      p.record.played > 0
+                        ? `${plural(p.record.played, 'partido')} · ${plural(p.record.wins, 'victoria')} · ${plural(p.record.goals, 'gol', 'goles')} en esta sala`
+                        : null,
+                      draggable ? 'Arrastra a otra columna para cambiar de equipo' : null,
+                    ]
+                      .filter(Boolean)
+                      .join('\n') || undefined}
                   >
                     {draggable && (
                       <span className={styles.grip} aria-hidden="true">

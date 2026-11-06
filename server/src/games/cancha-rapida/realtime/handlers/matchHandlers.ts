@@ -23,6 +23,16 @@ export function registerMatchHandlers(socket: ClientSocket, ctx: RealtimeContext
     ctx.broadcastState(res.room);
   });
 
+  socket.on('team:shuffle', (payload, ack) => {
+    if (typeof ack !== 'function') return;
+    const res = manager.shuffleTeams(playerId, payload?.mode);
+    if (!res.ok) return ack(res);
+    ack({ ok: true });
+    const how = payload.mode === 'balanced' ? 'de forma equilibrada' : 'al azar';
+    ctx.announce(res.room.code, `El host repartió los equipos ${how}`);
+    ctx.broadcastState(res.room);
+  });
+
   socket.on('team:kit', (payload, ack) => {
     if (typeof ack !== 'function') return;
     const res = manager.setKit(playerId, payload?.team, payload?.kit);

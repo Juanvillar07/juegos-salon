@@ -96,6 +96,20 @@ export class RealtimeContext {
           this.announce(code, goalNotice(events.goal, match.score));
           this.broadcastState(current);
         }
+        if (events.stage === 'goldenGoal') {
+          this.announce(code, 'Empate al final: ¡gol de oro! El primero que marque gana');
+        }
+        if (events.stage === 'penalties') this.announce(code, 'Empate al final: ¡a los penaltis!');
+        if (events.penalty) {
+          const { team, scored, shooterName } = events.penalty;
+          const shots = match.penaltyState!.shots;
+          const tally = `${shots.red.filter(Boolean).length}–${shots.blue.filter(Boolean).length}`;
+          this.announce(
+            code,
+            `${shooterName} ${scored ? 'marca' : 'falla'} el penalti para ${TEAM_NAMES[team]} · ${tally}`,
+          );
+        }
+        if (events.stage || events.penalty || events.penaltySetup) this.broadcastState(current);
         if (events.ended) return this.finishMatch(code);
       }
       if (snapshotDue) {

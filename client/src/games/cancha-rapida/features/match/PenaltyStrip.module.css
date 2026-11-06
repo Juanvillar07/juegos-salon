@@ -1,0 +1,59 @@
+.strip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.start {
+  justify-content: flex-start;
+}
+
+.team {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* El visitante en espejo: sus lanzamientos quedan cerca del centro, como los del local. */
+.right {
+  flex-direction: row-reverse;
+}
+
+.name {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.shots {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.shots i {
+  display: grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  font-style: normal;
+  font-size: 0.6rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* Del color del texto: se ve igual sobre la cancha (blanco) que en los resultados. */
+.pending {
+  border: 1.5px solid currentColor;
+  opacity: 0.45;
+}
+
+.scored {
+  background: var(--good);
+}
+
+.missed {
+  background: var(--bad);
+  color: #fff;
+}

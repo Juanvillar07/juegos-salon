@@ -21,13 +21,13 @@ export class Predictor {
   }
 
   /** Avanza el tiempo transcurrido en pasos fijos, como el servidor (con la barrera del saque, si la hay). */
-  advance(elapsedMs: number, keys: number, kickoff: Side | null = null): void {
+  advance(elapsedMs: number, keys: number, kickoff: Side | null = null, keeperSide: Side | null = null): void {
     this.pending = Math.min(this.pending + elapsedMs, MAX_PENDING_MS);
     this.body.keys = keys;
     // Con margen: sumar duraciones de paso en coma flotante puede quedarse una milésima corto.
     while (this.pending >= TICK_MS - 1e-6) {
       this.pending -= TICK_MS;
-      stepLonePlayer(this.body, kickoff);
+      stepLonePlayer(this.body, kickoff, keeperSide);
     }
   }
 

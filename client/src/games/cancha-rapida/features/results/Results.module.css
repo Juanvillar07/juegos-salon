@@ -53,6 +53,12 @@
   font-weight: 600;
 }
 
+.tiebreak {
+  margin-top: -6px;
+  color: var(--muted);
+  font-size: 1.05rem;
+}
+
 .goals {
   font-size: 3rem;
   font-weight: 700;

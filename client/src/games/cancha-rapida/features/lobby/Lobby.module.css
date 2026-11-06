@@ -30,3 +30,31 @@
     display: none;
   }
 }
+
+/* "Repartir: Al azar · Equilibrado" (solo el host), en la cabecera de Equipos. */
+.shuffle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.shuffle button {
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.shuffle button:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  background: var(--surface-2);
+}
+
+.shuffle button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}

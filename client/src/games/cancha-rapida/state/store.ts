@@ -140,6 +140,11 @@ export function updateRoomSettings(patch: Partial<RoomSettings>): Promise<Ack> {
   return new Promise((resolve) => socket.emit('room:settings', patch, resolve));
 }
 
+/** Reparte a los jugadores entre los dos equipos (host): al azar o equilibrado por récord. */
+export function shuffleTeams(mode: 'random' | 'balanced'): Promise<Ack> {
+  return withError((ack) => socket.emit('team:shuffle', { mode }, ack));
+}
+
 export function joinTeam(team: Team): Promise<Ack> {
   return withError((ack) => socket.emit('team:join', { team }, ack));
 }
@@ -238,7 +243,8 @@ socket.on('match:goal', (goal) => {
 });
 
 socket.on('match:results', (result) => {
-  pushNotice(result.winner ? `¡Ganó el equipo ${TEAM_NAMES[result.winner]}!` : 'Partido terminado: empate');
+  const how = result.tiebreak === 'penalties' ? ' en los penaltis' : result.tiebreak === 'goldenGoal' ? ' con gol de oro' : '';
+  pushNotice(result.winner ? `¡Ganó el equipo ${TEAM_NAMES[result.winner]}${how}!` : 'Partido terminado: empate');
 });
 
 socket.on('error', ({ message }) => setState({ error: message }));
