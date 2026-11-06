@@ -21,6 +21,8 @@ export interface ClientToServerEvents {
   'team:join': (payload: { team: Team }, ack: (res: Ack) => void) => void;
   /** Mover a otro jugador de equipo (solo el host, fuera de partido). */
   'team:move': (payload: { playerId: string; team: Team }, ack: (res: Ack) => void) => void;
+  /** Repartir a los jugadores entre los dos equipos (solo el host, fuera de partido). */
+  'team:shuffle': (payload: { mode: 'random' | 'balanced' }, ack: (res: Ack) => void) => void;
   /** Cambiar el uniforme de un equipo (solo el host, fuera de partido). */
   'team:kit': (payload: { team: Side; kit: TeamKit }, ack: (res: Ack) => void) => void;
   'match:start': (ack: (res: Ack) => void) => void;

@@ -192,8 +192,9 @@ describe('física de la cancha', () => {
     ]);
     Object.assign(w.ball, { x: 300, y: 150 });
     w.kickoff = null;
-    Object.assign(w.players[0], { x: -20, y: 0, vx: 2, vy: 0 });
-    Object.assign(w.players[1], { x: 12, y: 0, vx: -1, vy: 0 });
+    // Separados 2 px más que la suma de radios: en este paso se acercan 3 y chocan.
+    Object.assign(w.players[0], { x: -PLAYER.radius - 3, y: 0, vx: 2, vy: 0 });
+    Object.assign(w.players[1], { x: PLAYER.radius - 1, y: 0, vx: -1, vy: 0 });
     const before = w.players[0].vx + w.players[1].vx;
     w.players.forEach((p) => {
       p.vx /= PLAYER.damping;

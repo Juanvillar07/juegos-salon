@@ -63,6 +63,39 @@
   color: var(--bad);
 }
 
+/* Prórroga: gol de oro o penaltis en lugar del reloj. */
+.extra {
+  background: color-mix(in srgb, #e8b007 22%, var(--surface-2));
+  font-size: 0.95rem;
+}
+
+/* La tanda de penaltis, arriba al centro de la cancha (ahí no hay juego: se tira en un arco). */
+.penaltyBar {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 18px;
+  border-radius: var(--radius);
+  background: rgba(15, 15, 17, 0.78);
+  color: #fff;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.penaltyTurn {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.penaltyTurn strong {
+  color: #fff;
+}
+
 .menuButton {
   padding: 7px 12px;
   font-size: 0.85rem;

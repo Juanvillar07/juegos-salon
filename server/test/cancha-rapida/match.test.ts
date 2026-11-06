@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FIELD, GOAL_PAUSE_MS, KEY, TICK_MS, type RoomSettings } from '@typeracer/shared/cancha-rapida';
+import { DEFAULT_SETTINGS, FIELD, GOAL_PAUSE_MS, KEY, TICK_MS, type RoomSettings } from '@typeracer/shared/cancha-rapida';
 import { Match, type StepEvents } from '../../src/games/cancha-rapida/domain/Match.js';
 
 const PLAYERS = [
@@ -8,7 +8,7 @@ const PLAYERS = [
 ];
 
 function match(settings: Partial<RoomSettings> = {}, countdownMs = 0): Match {
-  return new Match(PLAYERS, { scoreLimit: 3, timeLimitMin: 3, ...settings }, countdownMs);
+  return new Match(PLAYERS, { ...DEFAULT_SETTINGS, scoreLimit: 3, timeLimitMin: 3, ...settings }, countdownMs);
 }
 
 /** Lanza el balón hacia la portería derecha desde cerca, como si lo hubiera tocado `touch`. */

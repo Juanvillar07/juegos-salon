@@ -104,6 +104,124 @@ describe('Cancha Rápida: salas y equipos', () => {
   });
 });
 
+describe('Cancha Rápida: repartir equipos', () => {
+  /** Azar reproducible (Park–Miller), para que el reparto no cambie entre ejecuciones. */
+  function seeded(seed = 7) {
+    let s = seed;
+    return () => (s = (s * 16807) % 2147483647) / 2147483647;
+  }
+
+  function room(extra: number, seed?: number) {
+    const manager = new RoomManager({ generateCode: () => 'ROOM0', countdownMs: 0, random: seeded(seed) });
+    manager.createRoom('a', 'Ana');
+    for (let i = 0; i < extra; i++) manager.joinRoom('ROOM0', `p${i}`, `Jugador ${i}`);
+    return manager;
+  }
+
+  const teams = (m: RoomManager) => {
+    const players = [...m.getRoom('ROOM0')!.players.values()];
+    return {
+      red: players.filter((p) => p.team === 'red').map((p) => p.id),
+      blue: players.filter((p) => p.team === 'blue').map((p) => p.id),
+      spectator: players.filter((p) => p.team === 'spectator').map((p) => p.id),
+    };
+  };
+
+  it('al azar: mitad y mitad, y los espectadores siguen mirando', () => {
+    const manager = room(6);
+    manager.joinTeam('p5', 'spectator');
+    const before = teams(manager);
+    expect(manager.shuffleTeams('a', 'random')).toMatchObject({ ok: true });
+    const after = teams(manager);
+    expect(after.red).toHaveLength(3);
+    expect(after.blue).toHaveLength(3);
+    expect(after.spectator).toEqual(['p5']);
+    expect([...after.red, ...after.blue].sort()).toEqual([...before.red, ...before.blue].sort());
+  });
+
+  it('al azar cambia el reparto según la suerte', () => {
+    const results = new Set<string>();
+    for (let seed = 1; seed <= 10; seed++) {
+      const manager = room(3, seed);
+      manager.shuffleTeams('a', 'random');
+      results.add(teams(manager).red.sort().join());
+    }
+    expect(results.size).toBeGreaterThan(1);
+  });
+
+  it('equilibrado: los dos mejores (por victorias y goles) quedan en equipos distintos', () => {
+    for (let seed = 1; seed <= 10; seed++) {
+      const manager = room(3, seed);
+      const players = manager.getRoom('ROOM0')!.players;
+      players.get('p1')!.record = { played: 4, wins: 4, goals: 6 };
+      players.get('p2')!.record = { played: 4, wins: 3, goals: 5 };
+      manager.shuffleTeams('a', 'balanced');
+      const { red, blue } = teams(manager);
+      expect(red).toHaveLength(2);
+      expect(blue).toHaveLength(2);
+      expect(red.includes('p1')).not.toBe(red.includes('p2'));
+    }
+  });
+
+  it('solo el host, entre partidos, con al menos dos jugadores y una forma válida', () => {
+    const manager = room(1);
+    expect(manager.shuffleTeams('p0', 'random')).toMatchObject({ ok: false });
+    expect(manager.shuffleTeams('a', 'sorteo')).toMatchObject({ ok: false, error: 'Forma de repartir no válida' });
+    manager.startMatch('a');
+    expect(manager.shuffleTeams('a', 'random')).toMatchObject({ ok: false, error: 'Los equipos se cambian entre partidos' });
+
+    const alone = room(1);
+    alone.joinTeam('p0', 'spectator');
+    expect(alone.shuffleTeams('a', 'random')).toMatchObject({
+      ok: false,
+      error: 'Hacen falta al menos 2 jugadores en los equipos',
+    });
+  });
+});
+
+describe('Cancha Rápida: desempate y récord', () => {
+  it('el host elige el desempate; se valida', () => {
+    const { manager, room } = setup(1);
+    expect(room.settings.tiebreak).toBe('draw');
+    expect(manager.updateSettings('a', { tiebreak: 'penalties' })).toMatchObject({ ok: true });
+    expect(room.settings.tiebreak).toBe('penalties');
+    expect(manager.updateSettings('a', { tiebreak: 'tanda' as never })).toMatchObject({ ok: false, error: 'Desempate no válido' });
+    expect(manager.updateSettings('p0', { tiebreak: 'goldenGoal' })).toMatchObject({ ok: false });
+  });
+
+  it('el resultado dice cómo se rompió el empate; en penaltis gana la tanda aunque el marcador quede igual', () => {
+    const { manager, room } = setup(1);
+    manager.startMatch('a');
+    Object.assign(room.match!, { stage: 'penalties', penaltyWinner: 'blue' });
+    expect(manager.endMatch('ROOM0')).toMatchObject({ winner: 'blue', score: { red: 0, blue: 0 }, tiebreak: 'penalties' });
+
+    manager.startMatch('a');
+    room.match!.score = { red: 1, blue: 0 };
+    Object.assign(room.match!, { stage: 'goldenGoal' });
+    expect(manager.endMatch('ROOM0')).toMatchObject({ winner: 'red', tiebreak: 'goldenGoal', penalties: null });
+
+    manager.startMatch('a');
+    expect(manager.endMatch('ROOM0')).toMatchObject({ winner: null, tiebreak: null, penalties: null });
+  });
+
+  it('cada partido suma al récord de la sala: jugados, victorias y goles (sin autogoles)', () => {
+    const { manager, room } = setup(1);
+    manager.startMatch('a');
+    room.match!.score = { red: 2, blue: 1 };
+    room.match!.goals = [
+      { team: 'red', scorerId: 'a', scorerName: 'Ana', ownGoal: false, clockMs: 1000 },
+      { team: 'red', scorerId: 'p0', scorerName: 'Jugador 0', ownGoal: true, clockMs: 2000 },
+      { team: 'blue', scorerId: 'p0', scorerName: 'Jugador 0', ownGoal: false, clockMs: 3000 },
+    ];
+    manager.endMatch('ROOM0');
+    manager.startMatch('a');
+    manager.endMatch('ROOM0');
+    const record = (id: string) => manager.toState(room).players.find((p) => p.id === id)!.record;
+    expect(record('a')).toEqual({ played: 2, wins: 1, goals: 1 });
+    expect(record('p0')).toEqual({ played: 2, wins: 0, goals: 1 });
+  });
+});
+
 describe('Cancha Rápida: uniformes', () => {
   const GREEN: TeamKit = { primary: '#2f9a5a', secondary: '#f4f4f2', pattern: 'stripes' };
 

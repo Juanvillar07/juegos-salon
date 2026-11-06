@@ -1,5 +1,13 @@
 import type { ChatMessage, PlayerStatus } from '@typeracer/shared';
-import type { MatchPhase, MatchResult, RoomSettings, Side, Team, TeamKit } from '@typeracer/shared/cancha-rapida';
+import type {
+  MatchPhase,
+  MatchResult,
+  PlayerRecord,
+  RoomSettings,
+  Side,
+  Team,
+  TeamKit,
+} from '@typeracer/shared/cancha-rapida';
 import type { Match } from './Match.js';
 
 export interface Player {
@@ -7,6 +15,8 @@ export interface Player {
   nickname: string;
   status: PlayerStatus;
   team: Team;
+  /** Partidos, victorias y goles en esta sala (para repartir equipos equilibrados). */
+  record: PlayerRecord;
   /** Último mensaje de chat, para limitar la frecuencia. */
   lastChatAt: number | null;
 }

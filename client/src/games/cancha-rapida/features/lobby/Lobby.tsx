@@ -4,7 +4,7 @@ import ExitRoomLink from '../../../../shell/ExitRoomLink';
 import Controls from '../home/Controls';
 import Chat from '../chat/Chat';
 import { GAME_HOME, roomPath } from '../../routes';
-import { startMatch } from '../../state/store';
+import { shuffleTeams, startMatch } from '../../state/store';
 import RoomSettingsPanel from './RoomSettingsPanel';
 import TeamsPanel from './TeamsPanel';
 import styles from '../../../rally-de-letras/features/lobby/Lobby.module.css';
@@ -35,9 +35,30 @@ export default function Lobby({ room, myId, isHost }: Props) {
         <section className={styles.section}>
           <div className={styles.sectionHead}>
             <span className="label">Equipos</span>
-            <span className="muted">
-              {isHost ? 'Arrastra a los jugadores para cambiarlos de equipo' : 'Arrástrate a un equipo o pulsa Unirme'}
-            </span>
+            {isHost ? (
+              // Además de arrastrar, el host puede repartir a todos de una vez.
+              <span className={own.shuffle} title="Arrastra a los jugadores para cambiarlos de equipo">
+                <span className="muted">Repartir</span>
+                <button
+                  type="button"
+                  onClick={() => void shuffleTeams('random')}
+                  disabled={playing < 2}
+                  title="Mezcla a los jugadores al azar, mitad y mitad"
+                >
+                  Al azar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void shuffleTeams('balanced')}
+                  disabled={playing < 2}
+                  title="Reparte según las victorias y los goles en esta sala, para que los equipos queden parejos"
+                >
+                  Equilibrado
+                </button>
+              </span>
+            ) : (
+              <span className="muted">Arrástrate a un equipo o pulsa Unirme</span>
+            )}
           </div>
           <TeamsPanel room={room} myId={myId} isHost={isHost} />
         </section>

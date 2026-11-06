@@ -26,7 +26,8 @@ export const FIELD = {
 } as const;
 
 export const PLAYER = {
-  radius: 15,
+  /** Algo menores que en HaxBall (15): con 4 por equipo queda más sitio para moverse y pasar. */
+  radius: 13,
   invMass: 0.5,
   damping: 0.96,
   /** Aceleración por tick con una dirección pulsada; algo menor mientras se carga el tiro. */
@@ -49,14 +50,19 @@ const NET_DAMPING = 0.9;
 const NET_BOUNCE = 0.2;
 
 /**
- * Tiro cargado: patear se carga mientras se mantiene la tecla y sale al soltarla. Un toque es un
- * pase suave; con la carga completa, el tiro más fuerte. Si al soltar el balón no está al
- * alcance, la patada espera un momento por si llega.
+ * Dos formas de patear, según elija el host en la sala:
+ * - Tiro cargado: patear se carga mientras se mantiene la tecla y sale al soltarla. Un toque es
+ *   un pase suave; con la carga completa, el tiro más fuerte. Si al soltar el balón no está al
+ *   alcance, la patada espera un momento por si llega.
+ * - Clásico (como HaxBall): mientras se mantiene patear, la patada sale al tocar el balón, siempre
+ *   con la misma fuerza; una por pulsación.
  */
 export const KICK = {
   /** Fuerza de un toque rápido y con la carga completa. */
   minPower: 3.5,
   maxPower: 8,
+  /** Fuerza fija de la patada clásica (algo más que en HaxBall: la cancha es más larga). */
+  classicPower: 6,
   /** Pasos manteniendo patear hasta la carga completa (unos 0,67 s). */
   chargeTicks: 40,
   /** Distancia máxima entre los bordes del jugador y del balón para poder patear. */
@@ -114,7 +120,20 @@ export interface World {
    * y el rival no puede entrar en el círculo central. null = juego libre.
    */
   kickoff: Side | null;
+  /** Con tiro cargado (true) o patada clásica de fuerza fija (false). */
+  chargedShot: boolean;
+  /** En un penalti, el arquero y la portería que defiende: no puede salir de su área. */
+  keeper: { id: string; side: Side } | null;
 }
+
+/** Penaltis: distancia del punto a la línea de gol y área en la que se mueve el arquero. */
+export const PENALTY = {
+  spotDistance: 150,
+  /** El arquero puede adelantarse hasta aquí desde la línea… */
+  keeperDepth: 60,
+  /** …y salirse de los postes hasta aquí. */
+  keeperSideMargin: 25,
+} as const;
 
 /** Postes de las porterías: discos fijos en las esquinas de cada boca. */
 export const POSTS: readonly { x: number; y: number }[] = [
@@ -132,8 +151,8 @@ const KICKOFF_SPOTS: readonly [number, number][] = [
   [-430, 0],
 ];
 
-/** El primer saque del partido es del equipo rojo. */
-export function createWorld(players: { id: string; team: Side }[]): World {
+/** El primer saque del partido es del equipo rojo. Por defecto, con tiro cargado. */
+export function createWorld(players: { id: string; team: Side }[], { chargedShot = true } = {}): World {
   const world: World = {
     ball: { x: 0, y: 0, vx: 0, vy: 0 },
     players: players.map((p) => ({
@@ -150,6 +169,8 @@ export function createWorld(players: { id: string; team: Side }[]): World {
     lastTouch: null,
     ballSpin: 0,
     kickoff: null,
+    chargedShot,
+    keeper: null,
   };
   resetKickoff(world, 'red');
   return world;
@@ -176,15 +197,63 @@ export function resetKickoff(world: World, kickoff: Side): void {
 }
 
 /**
- * Nuevo estado de teclas de un jugador. Al soltar patear, la carga acumulada se convierte en una
- * patada que sale en cuanto el balón esté al alcance (o se pierde tras unos pasos).
+ * Prepara un penalti: en la cancha solo quedan el que tira y el arquero. El balón en el punto de
+ * penalti frente a la portería que ataca `team`, el que tira detrás y el arquero sobre la línea.
  */
-export function setKeys(player: PlayerBody, keys: number): void {
+export function setupPenalty(world: World, shooter: PlayerBody, keeper: PlayerBody, team: Side): void {
+  // El rojo ataca la portería de la derecha.
+  const side = team === 'red' ? 1 : -1;
+  const spot = side * (FIELD.halfWidth - PENALTY.spotDistance);
+  world.players = [shooter, keeper];
+  Object.assign(world.ball, { x: spot, y: 0, vx: 0, vy: 0 });
+  Object.assign(shooter, { x: spot - side * 45, y: 0, vx: 0, vy: 0, keys: 0, charge: 0, pendingKick: null });
+  Object.assign(keeper, { x: side * (FIELD.halfWidth - PLAYER.radius), y: 0, vx: 0, vy: 0, keys: 0, charge: 0, pendingKick: null });
+  world.lastTouch = null;
+  world.ballSpin = 0;
+  world.kickoff = null;
+  world.keeper = { id: keeper.id, side: team === 'red' ? 'blue' : 'red' };
+}
+
+/** El arquero de un penalti no sale de su área (delante de la portería que defiende `side`). */
+export function constrainKeeper(p: Disc, side: Side): void {
+  // El azul defiende la portería de la derecha.
+  const s = side === 'blue' ? 1 : -1;
+  const back = FIELD.halfWidth - PLAYER.radius;
+  const front = FIELD.halfWidth - PENALTY.keeperDepth;
+  const depth = p.x * s;
+  if (depth > back) {
+    p.x = s * back;
+    if (p.vx * s > 0) p.vx = 0;
+  } else if (depth < front) {
+    p.x = s * front;
+    if (p.vx * s < 0) p.vx = 0;
+  }
+  const maxY = FIELD.goalHalfHeight + PENALTY.keeperSideMargin;
+  if (Math.abs(p.y) > maxY) {
+    p.y = Math.sign(p.y) * maxY;
+    p.vy = 0;
+  }
+}
+
+/**
+ * Nuevo estado de teclas de un jugador.
+ * - Tiro cargado: al soltar patear, la carga acumulada se convierte en una patada que sale en
+ *   cuanto el balón esté al alcance (o se pierde tras unos pasos).
+ * - Clásico: al pulsar patear queda una patada de fuerza fija lista mientras se mantenga la tecla;
+ *   sale al tocar el balón y al soltar se descarta.
+ */
+export function setKeys(player: PlayerBody, keys: number, chargedShot = true): void {
   const wasKicking = (player.keys & KEY.kick) !== 0;
   const kicking = (keys & KEY.kick) !== 0;
-  if (wasKicking && !kicking) {
-    player.pendingKick = { power: kickPower(player.charge), ticks: KICK.graceTicks };
-    player.charge = 0;
+  if (chargedShot) {
+    if (wasKicking && !kicking) {
+      player.pendingKick = { power: kickPower(player.charge), ticks: KICK.graceTicks };
+      player.charge = 0;
+    }
+  } else if (kicking && !wasKicking) {
+    player.pendingKick = { power: KICK.classicPower, ticks: Number.POSITIVE_INFINITY };
+  } else if (!kicking) {
+    player.pendingKick = null;
   }
   player.keys = keys;
 }
@@ -194,7 +263,7 @@ export function stepWorld(world: World): void {
   const { ball, players } = world;
   for (const p of players) {
     accelerate(p);
-    if (p.keys & KEY.kick) p.charge = Math.min(p.charge + 1, KICK.chargeTicks);
+    if (world.chargedShot && p.keys & KEY.kick) p.charge = Math.min(p.charge + 1, KICK.chargeTicks);
   }
   for (const p of players) {
     const spin = kick(p, ball);
@@ -235,18 +304,21 @@ export function stepWorld(world: World): void {
   for (const p of players) {
     constrainPlayer(p);
     if (world.kickoff) kickoffBarrier(p, world.kickoff);
+    if (world.keeper?.id === p.id) constrainKeeper(p, world.keeper.side);
   }
 }
 
 /**
  * Paso de un jugador solo (sin choques): lo usa el cliente para que su propio jugador responda
- * al instante, antes de que llegue la posición del servidor. Respeta la barrera del saque.
+ * al instante, antes de que llegue la posición del servidor. Respeta la barrera del saque y, si
+ * es el arquero de un penalti, su área (`keeperSide`: la portería que defiende).
  */
-export function stepLonePlayer(player: PlayerBody, kickoff: Side | null = null): void {
+export function stepLonePlayer(player: PlayerBody, kickoff: Side | null = null, keeperSide: Side | null = null): void {
   accelerate(player);
   move(player, PLAYER.damping);
   constrainPlayer(player);
   if (kickoff) kickoffBarrier(player, kickoff);
+  if (keeperSide) constrainKeeper(player, keeperSide);
 }
 
 /** Gol si el balón cruzó entero la línea dentro de una portería: anota el equipo que atacaba ese lado. */
@@ -357,9 +429,12 @@ function constrainBall(b: Disc): boolean {
   let hit = false;
 
   if (Math.abs(b.x) > W) {
-    // Dentro de la portería: la red frena el balón y casi no rebota.
-    b.vx *= NET_DAMPING;
-    b.vy *= NET_DAMPING;
+    // Dentro de la portería la red frena el balón y casi no rebota. Solo cuando ya cruzó la línea
+    // entero (ya es gol): si frenara antes, un balón lento se quedaría parado sobre la línea.
+    if (Math.abs(b.x) > W + r) {
+      b.vx *= NET_DAMPING;
+      b.vy *= NET_DAMPING;
+    }
     if (Math.abs(b.x) > W + D - r) {
       b.x = side * (W + D - r);
       if (b.vx * side > 0) b.vx = -b.vx * NET_BOUNCE;

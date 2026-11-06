@@ -16,6 +16,9 @@ export const MAX_ROOM_PLAYERS = 12;
 /** Tras un gol, la jugada sigue (el balón en la red) antes de volver al saque. */
 export const GOAL_PAUSE_MS = 2000;
 
+/** Penaltis por equipo en una tanda, antes de la muerte súbita. */
+export const PENALTY_ROUNDS = 3;
+
 /**
  * Nombres de los equipos. Por dentro siguen siendo `red` (el local: defiende la izquierda y saca
  * primero) y `blue` (el visitante); los colores los pone el uniforme que elige el host (kits.ts).

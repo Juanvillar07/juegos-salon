@@ -101,13 +101,18 @@ export default function Pitch({ room, myId, keys }: Props) {
       if (latest && serverMe && me && me.team !== 'spectator') {
         predictor ??= new Predictor(myId, me.team, serverMe);
         // Durante la cuenta atrás la cancha está quieta: no se predice movimiento.
-        if (current.startAt === null || sNow >= current.startAt) predictor.advance(elapsed, keys.current, latest.kickoff);
+        // En un penalti, si soy el arquero, mi predicción tampoco sale del área.
+        const keeperSide = current.penalties?.keeperId === myId ? me.team : null;
+        if (current.startAt === null || sNow >= current.startAt) {
+          predictor.advance(elapsed, keys.current, latest.kickoff, keeperSide);
+        }
         // El servidor aplicará mis teclas de ahora dentro de medio viaje: se proyecta hasta ahí.
         const ahead = Math.min(MAX_AHEAD_MS, sNow + clock.roundTrip / 2 - latest.serverTime);
         predictor.correct(project(serverMe, ahead), elapsed);
       }
 
-      if (keys.current & KEY.kick) chargeStart ??= now;
+      // Con la patada clásica no hay carga (ni aro).
+      if (current.settings.chargedShot && keys.current & KEY.kick) chargeStart ??= now;
       else chargeStart = null;
       const ownCharge = chargeStart === null ? 0 : Math.min(1, (now - chargeStart) / (KICK.chargeTicks * TICK_MS));
 

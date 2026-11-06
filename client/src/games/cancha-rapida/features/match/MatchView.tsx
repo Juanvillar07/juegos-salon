@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { TEAM_NAMES, type RoomState } from '@typeracer/shared/cancha-rapida';
+import { TEAM_NAMES, type PenaltyState, type RoomState, type Side } from '@typeracer/shared/cancha-rapida';
 import KitBadge from '../../components/KitBadge';
+import PenaltyStrip from './PenaltyStrip';
 import Chat from '../chat/Chat';
 import { GAME_HOME } from '../../routes';
 import { frames, serverNow, stopMatch, useClientState } from '../../state/store';
@@ -80,6 +81,9 @@ export default function MatchView({ room, myId, isHost }: Props) {
 
   const countdown = room.startAt !== null && now < room.startAt ? Math.ceil((room.startAt - now) / 1000) : null;
   const remaining = Math.max(0, room.settings.timeLimitMin * 60_000 - clockMs);
+  const pen = room.penalties;
+  const nickname = (id: string | null) => room.players.find((p) => p.id === id)?.nickname ?? '—';
+  const penaltyFlash = usePenaltyFlash(pen, nickname);
 
   return (
     <div className={`${styles.match} ${chatOpen ? styles.chatOpen : ''}`} data-fit data-race>
@@ -96,7 +100,15 @@ export default function MatchView({ room, myId, isHost }: Props) {
             {TEAM_NAMES.blue}
             <KitBadge kit={room.kits.blue} size={20} />
           </span>
-          <span className={`${styles.clock} num ${remaining < 30_000 ? styles.hurry : ''}`}>{formatClock(remaining)}</span>
+          {room.stage === 'goldenGoal' ? (
+            <span className={`${styles.clock} ${styles.extra}`} title="El primero que marque gana">
+              Gol de oro
+            </span>
+          ) : room.stage === 'penalties' ? (
+            <span className={`${styles.clock} ${styles.extra}`}>Penaltis</span>
+          ) : (
+            <span className={`${styles.clock} num ${remaining < 30_000 ? styles.hurry : ''}`}>{formatClock(remaining)}</span>
+          )}
           <button
             type="button"
             className={`btn ghost ${styles.menuButton}`}
@@ -114,6 +126,25 @@ export default function MatchView({ room, myId, isHost }: Props) {
 
         <div className={styles.field}>
           <Pitch room={room} myId={myId} keys={keys} />
+
+          {pen && (
+            <div className={styles.penaltyBar}>
+              <PenaltyStrip shots={pen.shots} kits={room.kits} />
+              <span className={styles.penaltyTurn}>
+                Tira <strong>{nickname(pen.shooterId)}</strong> · Ataja <strong>{nickname(pen.keeperId)}</strong>
+              </span>
+            </div>
+          )}
+
+          {penaltyFlash && (
+            <div className={styles.overlay}>
+              <div className={styles.goal} key={penaltyFlash.id}>
+                <KitBadge kit={room.kits[penaltyFlash.team]} size={40} label={`Uniforme de ${TEAM_NAMES[penaltyFlash.team]}`} />
+                <strong>{penaltyFlash.scored ? '¡Gol!' : '¡Fallado!'}</strong>
+                <span>{penaltyFlash.scored ? `de ${penaltyFlash.shooter}` : `${penaltyFlash.shooter} no marca`}</span>
+              </div>
+            </div>
+          )}
 
           {countdown !== null && (
             <div className={styles.overlay}>
@@ -158,11 +189,7 @@ export default function MatchView({ room, myId, isHost }: Props) {
           )}
         </div>
 
-        <p className={styles.hint}>
-          {playing
-            ? 'Flechas o WASD para moverte · X o espacio: toque = pase, mantén y suelta = tiro · Enter para chatear'
-            : 'Estás mirando como espectador: juegas en el próximo partido'}
-        </p>
+        <p className={styles.hint}>{hintText(room, myId, playing)}</p>
       </div>
 
       <aside className={styles.side} aria-hidden={!chatOpen}>
@@ -180,6 +207,56 @@ export default function MatchView({ room, myId, isHost }: Props) {
       </aside>
     </div>
   );
+}
+
+/** La pista bajo la cancha: controles, o qué te toca en la tanda de penaltis. */
+function hintText(room: RoomState, myId: string, playing: boolean): string {
+  if (!playing) return 'Estás mirando como espectador: juegas en el próximo partido';
+  const pen = room.penalties;
+  if (pen) {
+    if (pen.shooterId === myId) return 'Tiras tú: un solo toque, así que apunta bien · tienes 6 segundos';
+    if (pen.keeperId === myId) return 'Atajas tú: muévete dentro de tu área para parar el tiro';
+    return 'Tanda de penaltis: espera tu turno para tirar o atajar';
+  }
+  return room.settings.chargedShot
+    ? 'Flechas o WASD para moverte · X o espacio: toque = pase, mantén y suelta = tiro · Enter para chatear'
+    : 'Flechas o WASD para moverte · X o espacio para patear al tocar el balón · Enter para chatear';
+}
+
+interface PenaltyFlash {
+  id: number;
+  team: Side;
+  scored: boolean;
+  shooter: string;
+}
+
+/** Cuánto se ve el cartel de cada penalti (el servidor espera 1,5 s antes del siguiente). */
+const PENALTY_FLASH_MS = 1400;
+
+/**
+ * Cartel breve tras cada penalti ("¡Gol!" o "¡Fallado!"). Se detecta al crecer la tanda: tira
+ * primero el local, así que el último en tirar es el equipo con más lanzamientos (o el
+ * visitante, si van parejos).
+ */
+function usePenaltyFlash(pen: PenaltyState | null, nickname: (id: string | null) => string): PenaltyFlash | null {
+  const [flash, setFlash] = useState<PenaltyFlash | null>(null);
+  const total = pen ? pen.shots.red.length + pen.shots.blue.length : 0;
+  const seen = useRef(total);
+  useEffect(() => {
+    if (!pen || total <= seen.current) {
+      seen.current = total;
+      return;
+    }
+    seen.current = total;
+    const team: Side = pen.shots.red.length > pen.shots.blue.length ? 'red' : 'blue';
+    const shots = pen.shots[team];
+    const next = { id: total, team, scored: shots[shots.length - 1], shooter: nickname(pen.shooterId) };
+    setFlash(next);
+    const timer = setTimeout(() => setFlash((f) => (f?.id === next.id ? null : f)), PENALTY_FLASH_MS);
+    return () => clearTimeout(timer);
+    // Solo al llegar un lanzamiento nuevo (el resto de la tanda puede cambiar sin cartel).
+  }, [total]);
+  return flash;
 }
 
 /** Hora del servidor y reloj del partido (de la última instantánea), refrescados cada poco. */

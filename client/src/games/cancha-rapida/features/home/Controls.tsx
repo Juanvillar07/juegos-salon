@@ -21,7 +21,7 @@ export default function Controls() {
           <kbd className={styles.wide}>Espacio</kbd>
         </span>
         <span>
-          <strong>Patear</strong> · un toque es un pase; mantén para cargar y suelta para tirar. De lado, con efecto
+          <strong>Patear</strong> · con potencia: mantén para cargar y suelta. Clásica: al tocar el balón. De lado, con efecto
         </span>
       </li>
       <li>
