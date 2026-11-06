@@ -17,7 +17,7 @@ export class Predictor {
   private pending = 0;
 
   constructor(id: string, team: Side, start: Disc) {
-    this.body = { id, team, ...start, keys: 0, kickArmed: false };
+    this.body = { id, team, ...start, keys: 0, charge: 0, pendingKick: null };
   }
 
   /** Avanza el tiempo transcurrido en pasos fijos, como el servidor (con la barrera del saque, si la hay). */

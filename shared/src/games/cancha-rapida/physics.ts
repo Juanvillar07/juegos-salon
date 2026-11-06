@@ -21,14 +21,16 @@ export const FIELD = {
   outerHalfHeight: 270,
   /** Círculo central (solo se dibuja). */
   centerRadius: 80,
+  /** Esquinas redondeadas: el balón no se queda atascado en ellas. */
+  cornerRadius: 60,
 } as const;
 
 export const PLAYER = {
   radius: 15,
   invMass: 0.5,
   damping: 0.96,
-  /** Aceleración por tick con una dirección pulsada; algo menor mientras se mantiene patear. */
-  accel: 0.1,
+  /** Aceleración por tick con una dirección pulsada; algo menor mientras se carga el tiro. */
+  accel: 0.11,
   kickingAccel: 0.07,
   bounce: 0.5,
 } as const;
@@ -37,13 +39,41 @@ export const BALL = { radius: 10, invMass: 1, damping: 0.99, bounce: 0.5 } as co
 export const POST_RADIUS = 8;
 /** Rebote de paredes y postes (se multiplica por el del balón). */
 const WALL_BOUNCE = 1;
+/**
+ * Rebote entre jugador y balón cuando no se patea: bajo, para poder llevar el balón pegado sin
+ * que salga despedido en cada toque (el tiro depende de patear).
+ */
+const DRIBBLE_BOUNCE = 0.1;
+/** Dentro de la portería la red frena el balón y casi no rebota: "muere" en ella. */
+const NET_DAMPING = 0.9;
+const NET_BOUNCE = 0.2;
 
+/**
+ * Tiro cargado: patear se carga mientras se mantiene la tecla y sale al soltarla. Un toque es un
+ * pase suave; con la carga completa, el tiro más fuerte. Si al soltar el balón no está al
+ * alcance, la patada espera un momento por si llega.
+ */
 export const KICK = {
-  /** Impulso que recibe el balón. */
-  strength: 5,
+  /** Fuerza de un toque rápido y con la carga completa. */
+  minPower: 3.5,
+  maxPower: 8,
+  /** Pasos manteniendo patear hasta la carga completa (unos 0,67 s). */
+  chargeTicks: 40,
   /** Distancia máxima entre los bordes del jugador y del balón para poder patear. */
   reach: 4,
+  /** Pasos que la patada espera al balón tras soltar la tecla (unos 150 ms). */
+  graceTicks: 9,
+  /** Efecto: giro por cada px/paso de velocidad lateral del jugador, con tope, y lo que se conserva por paso. */
+  spinPerSpeed: 0.009,
+  maxSpin: 0.014,
+  spinDecay: 0.97,
 } as const;
+
+/** Fuerza del tiro según los pasos que se mantuvo patear. */
+export function kickPower(chargeTicks: number): number {
+  const charge = Math.min(1, chargeTicks / KICK.chargeTicks);
+  return KICK.minPower + (KICK.maxPower - KICK.minPower) * charge;
+}
 
 /** Teclas como máscara de bits: es lo único que manda el cliente. */
 export const KEY = { up: 1, down: 2, left: 4, right: 8, kick: 16 } as const;
@@ -66,8 +96,10 @@ export interface PlayerBody extends Disc {
   id: string;
   team: Side;
   keys: number;
-  /** Pulsó patear y todavía no pateó: una patada por pulsación (mantener no patea en ráfaga). */
-  kickArmed: boolean;
+  /** Pasos que lleva manteniendo patear (la carga del tiro); 0 si no la mantiene. */
+  charge: number;
+  /** Patada soltada que espera al balón: su fuerza y los pasos que le quedan. */
+  pendingKick: { power: number; ticks: number } | null;
 }
 
 export interface World {
@@ -75,6 +107,8 @@ export interface World {
   players: PlayerBody[];
   /** Último jugador que tocó el balón: el autor del gol. */
   lastTouch: string | null;
+  /** Efecto del balón: cuánto gira su dirección en cada paso (radianes); 0 = va recto. */
+  ballSpin: number;
   /**
    * Equipo que saca, hasta que toca el balón. Mientras tanto nadie cruza la línea de medio campo
    * y el rival no puede entrar en el círculo central. null = juego libre.
@@ -102,8 +136,19 @@ const KICKOFF_SPOTS: readonly [number, number][] = [
 export function createWorld(players: { id: string; team: Side }[]): World {
   const world: World = {
     ball: { x: 0, y: 0, vx: 0, vy: 0 },
-    players: players.map((p) => ({ id: p.id, team: p.team, x: 0, y: 0, vx: 0, vy: 0, keys: 0, kickArmed: false })),
+    players: players.map((p) => ({
+      id: p.id,
+      team: p.team,
+      x: 0,
+      y: 0,
+      vx: 0,
+      vy: 0,
+      keys: 0,
+      charge: 0,
+      pendingKick: null,
+    })),
     lastTouch: null,
+    ballSpin: 0,
     kickoff: null,
   };
   resetKickoff(world, 'red');
@@ -117,6 +162,7 @@ export function createWorld(players: { id: string; team: Side }[]): World {
 export function resetKickoff(world: World, kickoff: Side): void {
   Object.assign(world.ball, { x: 0, y: 0, vx: 0, vy: 0 });
   world.lastTouch = null;
+  world.ballSpin = 0;
   world.kickoff = world.players.some((p) => p.team === kickoff) ? kickoff : null;
   for (const team of ['red', 'blue'] as const) {
     const mirror = team === 'red' ? 1 : -1;
@@ -124,42 +170,58 @@ export function resetKickoff(world: World, kickoff: Side): void {
       .filter((p) => p.team === team)
       .forEach((p, i) => {
         const [x, y] = KICKOFF_SPOTS[i % KICKOFF_SPOTS.length];
-        Object.assign(p, { x: x * mirror, y, vx: 0, vy: 0, kickArmed: false });
+        Object.assign(p, { x: x * mirror, y, vx: 0, vy: 0, charge: 0, pendingKick: null });
       });
   }
 }
 
-/** Nuevo estado de teclas de un jugador. Patear se "arma" al pulsar y se gasta al patear. */
+/**
+ * Nuevo estado de teclas de un jugador. Al soltar patear, la carga acumulada se convierte en una
+ * patada que sale en cuanto el balón esté al alcance (o se pierde tras unos pasos).
+ */
 export function setKeys(player: PlayerBody, keys: number): void {
-  const kick = (keys & KEY.kick) !== 0;
-  if (kick && (player.keys & KEY.kick) === 0) player.kickArmed = true;
-  if (!kick) player.kickArmed = false;
+  const wasKicking = (player.keys & KEY.kick) !== 0;
+  const kicking = (keys & KEY.kick) !== 0;
+  if (wasKicking && !kicking) {
+    player.pendingKick = { power: kickPower(player.charge), ticks: KICK.graceTicks };
+    player.charge = 0;
+  }
   player.keys = keys;
 }
 
 /** Un paso de simulación. */
 export function stepWorld(world: World): void {
   const { ball, players } = world;
-  for (const p of players) accelerate(p);
   for (const p of players) {
-    if (kick(p, ball)) world.lastTouch = p.id;
+    accelerate(p);
+    if (p.keys & KEY.kick) p.charge = Math.min(p.charge + 1, KICK.chargeTicks);
+  }
+  for (const p of players) {
+    const spin = kick(p, ball);
+    if (spin !== null) {
+      world.lastTouch = p.id;
+      world.ballSpin = spin;
+    }
   }
   for (const p of players) move(p, PLAYER.damping);
   move(ball, BALL.damping);
+  curve(world);
 
   for (let i = 0; i < players.length; i++) {
     for (let j = i + 1; j < players.length; j++) {
       collide(players[i], players[j], PLAYER.invMass, PLAYER.invMass, PLAYER.radius * 2, PLAYER.bounce ** 2);
     }
   }
+  // Un toque, un poste o una pared le quitan el efecto al balón.
   for (const p of players) {
-    if (collide(p, ball, PLAYER.invMass, BALL.invMass, PLAYER.radius + BALL.radius, PLAYER.bounce * BALL.bounce)) {
+    if (collide(p, ball, PLAYER.invMass, BALL.invMass, PLAYER.radius + BALL.radius, DRIBBLE_BOUNCE)) {
       world.lastTouch = p.id;
+      world.ballSpin = 0;
     }
   }
   for (const post of POSTS) {
     const fixed = { ...post, vx: 0, vy: 0 };
-    collide(fixed, ball, 0, BALL.invMass, POST_RADIUS + BALL.radius, BALL.bounce * WALL_BOUNCE);
+    if (collide(fixed, ball, 0, BALL.invMass, POST_RADIUS + BALL.radius, BALL.bounce * WALL_BOUNCE)) world.ballSpin = 0;
     for (const p of players) collide(fixed, p, 0, PLAYER.invMass, POST_RADIUS + PLAYER.radius, PLAYER.bounce);
   }
 
@@ -169,7 +231,7 @@ export function stepWorld(world: World): void {
     world.kickoff = null;
   }
 
-  constrainBall(ball);
+  if (constrainBall(ball)) world.ballSpin = 0;
   for (const p of players) {
     constrainPlayer(p);
     if (world.kickoff) kickoffBarrier(p, world.kickoff);
@@ -212,19 +274,43 @@ function move(d: Disc, damping: number): void {
   d.vy *= damping;
 }
 
-/** Patada: con patear armado y el balón al alcance, el balón sale empujado desde el jugador. */
-function kick(p: PlayerBody, ball: Disc): boolean {
-  if (!p.kickArmed || (p.keys & KEY.kick) === 0) return false;
+/**
+ * Patada pendiente: si el balón está al alcance, sale empujado desde el jugador con la fuerza de
+ * la carga, y devuelve el efecto que lleva (según cómo se movía el jugador de lado). Si no, la
+ * espera se va agotando. Devuelve null si no pateó.
+ */
+function kick(p: PlayerBody, ball: Disc): number | null {
+  const pending = p.pendingKick;
+  if (!pending) return null;
   const dx = ball.x - p.x;
   const dy = ball.y - p.y;
   const dist = Math.hypot(dx, dy);
-  if (dist - PLAYER.radius - BALL.radius > KICK.reach) return false;
+  if (dist - PLAYER.radius - BALL.radius > KICK.reach) {
+    pending.ticks--;
+    if (pending.ticks <= 0) p.pendingKick = null;
+    return null;
+  }
   const nx = dist > 0 ? dx / dist : 1;
   const ny = dist > 0 ? dy / dist : 0;
-  ball.vx += nx * KICK.strength * BALL.invMass;
-  ball.vy += ny * KICK.strength * BALL.invMass;
-  p.kickArmed = false;
-  return true;
+  ball.vx += nx * pending.power * BALL.invMass;
+  ball.vy += ny * pending.power * BALL.invMass;
+  p.pendingKick = null;
+  // Velocidad lateral del jugador respecto al tiro (producto vectorial): el balón curva hacia ese lado.
+  const lateral = nx * p.vy - ny * p.vx;
+  return Math.max(-KICK.maxSpin, Math.min(KICK.maxSpin, lateral * KICK.spinPerSpeed));
+}
+
+/** El efecto gira la dirección del balón un poco en cada paso (sin cambiar su rapidez) y se va perdiendo. */
+function curve(world: World): void {
+  const spin = world.ballSpin;
+  if (spin === 0) return;
+  const { ball } = world;
+  const cos = Math.cos(spin);
+  const sin = Math.sin(spin);
+  const vx = ball.vx * cos - ball.vy * sin;
+  ball.vy = ball.vx * sin + ball.vy * cos;
+  ball.vx = vx;
+  world.ballSpin = Math.abs(spin) < 1e-4 ? 0 : spin * KICK.spinDecay;
 }
 
 /**
@@ -259,36 +345,71 @@ function collide(a: Disc, b: Disc, invA: number, invB: number, minDist: number, 
   return true;
 }
 
-/** El balón rebota en las líneas, salvo por la boca de las porterías, donde lo contiene la red. */
-function constrainBall(b: Disc): void {
+/**
+ * El balón rebota en las líneas (con las esquinas redondeadas), salvo por la boca de las
+ * porterías, donde lo contiene la red. Devuelve si rebotó en algo.
+ */
+function constrainBall(b: Disc): boolean {
   const r = BALL.radius;
   const bounce = BALL.bounce * WALL_BOUNCE;
-  const { halfWidth: W, halfHeight: H, goalHalfHeight: G, goalDepth: D } = FIELD;
+  const { halfWidth: W, halfHeight: H, goalHalfHeight: G, goalDepth: D, cornerRadius: C } = FIELD;
   const side = b.x < 0 ? -1 : 1;
+  let hit = false;
 
   if (Math.abs(b.x) > W) {
-    // Dentro de la portería: fondo y laterales de la red.
+    // Dentro de la portería: la red frena el balón y casi no rebota.
+    b.vx *= NET_DAMPING;
+    b.vy *= NET_DAMPING;
     if (Math.abs(b.x) > W + D - r) {
       b.x = side * (W + D - r);
-      if (b.vx * side > 0) b.vx = -b.vx * bounce;
+      if (b.vx * side > 0) b.vx = -b.vx * NET_BOUNCE;
+      hit = true;
     }
     if (Math.abs(b.y) > G - r) {
       const s = Math.sign(b.y);
       b.y = s * (G - r);
-      if (b.vy * s > 0) b.vy = -b.vy * bounce;
+      if (b.vy * s > 0) b.vy = -b.vy * NET_BOUNCE;
+      hit = true;
     }
-    return;
+    return hit;
   }
+
+  // Esquina redondeada: el balón se mantiene dentro del arco y rebota según su normal.
+  const cx = W - C;
+  const cy = H - C;
+  if (Math.abs(b.x) > cx && Math.abs(b.y) > cy) {
+    const sy = b.y < 0 ? -1 : 1;
+    const dx = Math.abs(b.x) - cx;
+    const dy = Math.abs(b.y) - cy;
+    const dist = Math.hypot(dx, dy);
+    const limit = C - r;
+    if (dist > limit) {
+      const nx = (dx / dist) * side;
+      const ny = (dy / dist) * sy;
+      b.x = side * cx + nx * limit;
+      b.y = sy * cy + ny * limit;
+      const outward = b.vx * nx + b.vy * ny;
+      if (outward > 0) {
+        b.vx -= (1 + bounce) * outward * nx;
+        b.vy -= (1 + bounce) * outward * ny;
+      }
+      hit = true;
+    }
+  }
+
   if (Math.abs(b.y) > H - r) {
     const s = Math.sign(b.y);
     b.y = s * (H - r);
     if (b.vy * s > 0) b.vy = -b.vy * bounce;
+    hit = true;
   }
   // Fuera de la boca de la portería, la línea de fondo es una pared.
   if (Math.abs(b.y) > G && Math.abs(b.x) > W - r) {
     b.x = side * (W - r);
     if (b.vx * side > 0) b.vx = -b.vx * bounce;
+    hit = true;
   }
+  return hit;
 }
 
 /**

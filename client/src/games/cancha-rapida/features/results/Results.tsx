@@ -1,4 +1,5 @@
-import { TEAM_COLORS, TEAM_NAMES, type RoomState } from '@typeracer/shared/cancha-rapida';
+import { TEAM_NAMES, type RoomState } from '@typeracer/shared/cancha-rapida';
+import KitBadge from '../../components/KitBadge';
 import ExitRoomLink from '../../../../shell/ExitRoomLink';
 import { revealDelay, useReveal } from '../../../../shell/transitions';
 import Chat from '../chat/Chat';
@@ -34,10 +35,8 @@ export default function Results({ room, myId, isHost }: Props) {
         <span className="label t-stagger-line" style={revealDelay(0)}>
           Resultado · {formatClock(result.durationMs)} de juego
         </span>
-        <h1
-          className={`${styles.headline} t-stagger-line`}
-          style={{ ...revealDelay(1), color: result.winner ? TEAM_COLORS[result.winner] : undefined }}
-        >
+        <h1 className={`${styles.headline} t-stagger-line`} style={revealDelay(1)}>
+          {result.winner && <KitBadge kit={room.kits[result.winner]} size={44} />}
           {headline}
         </h1>
 
@@ -45,7 +44,7 @@ export default function Results({ room, myId, isHost }: Props) {
           {(['red', 'blue'] as const).map((team) => (
             <div key={team} className={`${styles.side} ${result.winner === team ? styles.winner : ''}`}>
               <span className={styles.teamName}>
-                <span className="dot" style={{ background: TEAM_COLORS[team] }} />
+                <KitBadge kit={room.kits[team]} size={20} />
                 {TEAM_NAMES[team]}
               </span>
               <span className={`${styles.goals} num`}>{result.score[team]}</span>
@@ -71,7 +70,7 @@ export default function Results({ room, myId, isHost }: Props) {
               {result.goals.map((g, i) => (
                 <li key={i}>
                   <span className={`${styles.minute} num`}>{goalMinute(g.clockMs)}</span>
-                  <span className="dot" style={{ background: TEAM_COLORS[g.team] }} />
+                  <KitBadge kit={room.kits[g.team]} size={16} />
                   <span>
                     {g.scorerName ?? 'Sin autor'}
                     {g.ownGoal && <span className={styles.own}> (en propia)</span>}

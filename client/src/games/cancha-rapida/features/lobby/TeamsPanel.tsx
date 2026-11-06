@@ -1,16 +1,19 @@
 import { useState, type DragEvent } from 'react';
 import {
   MAX_PER_TEAM,
-  TEAM_COLORS,
+  SPECTATOR_COLOR,
   TEAM_NAMES,
   type PlayerInfo,
   type RoomState,
+  type Side,
   type Team,
 } from '@typeracer/shared/cancha-rapida';
 import StatusTag from '../../../rally-de-letras/components/StatusTag';
 import KickButton from '../../../../shell/KickButton';
+import KitBadge from '../../components/KitBadge';
 import { avatar } from '../../components/pitchStyle';
 import { joinTeam, kickPlayer, movePlayer } from '../../state/store';
+import KitEditor from './KitEditor';
 import styles from './TeamsPanel.module.css';
 
 /** Columnas de izquierda a derecha, como en la cancha: rojos atacan hacia la derecha. */
@@ -31,6 +34,8 @@ export default function TeamsPanel({ room, myId, isHost }: Props) {
   // Quién se está arrastrando y sobre qué columna (para resaltarla).
   const [dragId, setDragId] = useState<string | null>(null);
   const [overTeam, setOverTeam] = useState<Team | null>(null);
+  // Equipo cuyo uniforme está editando el host.
+  const [editingKit, setEditingKit] = useState<Side | null>(null);
   const dragged = dragId ? room.players.find((p) => p.id === dragId) : undefined;
 
   const count = (team: Team) => room.players.filter((p) => p.team === team).length;
@@ -73,9 +78,10 @@ export default function TeamsPanel({ room, myId, isHost }: Props) {
         const members = room.players.filter((p) => p.team === team);
         const full = isFull(team);
         const droppable = canDrop(team);
+        const kit = team === 'spectator' ? null : room.kits[team];
         const columnClass = [
           styles.column,
-          styles[team],
+          team === 'spectator' && styles.spectator,
           dragged && droppable && styles.droppable,
           dragged && !droppable && dragged.team !== team && styles.blocked,
           overTeam === team && styles.over,
@@ -88,15 +94,27 @@ export default function TeamsPanel({ room, myId, isHost }: Props) {
             key={team}
             className={columnClass}
             aria-label={TEAM_NAMES[team]}
+            // La franja de arriba lleva el color del uniforme.
+            style={kit ? { boxShadow: `inset 0 3px 0 ${kit.primary}` } : undefined}
             onDragOver={(e) => onDragOver(e, team)}
             onDragLeave={(e) => onDragLeave(e, team)}
             onDrop={(e) => onDrop(e, team)}
           >
             <header className={styles.head}>
               <span className={styles.name}>
-                {team !== 'spectator' && <span className="dot" style={{ background: TEAM_COLORS[team] }} />}
+                {kit && <KitBadge kit={kit} size={20} />}
                 {TEAM_NAMES[team]}
               </span>
+              {kit && isHost && team !== 'spectator' && (
+                <button
+                  type="button"
+                  className={styles.kitButton}
+                  onClick={() => setEditingKit(team)}
+                  title={`Cambiar el uniforme de ${TEAM_NAMES[team]}`}
+                >
+                  Uniforme
+                </button>
+              )}
               {team !== 'spectator' && (
                 <span className={`num ${full ? styles.fullCount : 'muted'}`}>
                   {members.length}/{MAX_PER_TEAM}
@@ -137,9 +155,15 @@ export default function TeamsPanel({ room, myId, isHost }: Props) {
                         <i />
                       </span>
                     )}
-                    <span className={styles.avatar} style={{ background: TEAM_COLORS[p.team] }}>
-                      {avatar(p.nickname)}
-                    </span>
+                    {p.team === 'spectator' ? (
+                      <span className={styles.avatar} style={{ background: SPECTATOR_COLOR }}>
+                        {avatar(p.nickname)}
+                      </span>
+                    ) : (
+                      <KitBadge kit={room.kits[p.team]} size={28}>
+                        {avatar(p.nickname)}
+                      </KitBadge>
+                    )}
                     <span className={`nick ${styles.nick}`}>{p.nickname}</span>
                     {p.id === room.hostId && <span className="tag">host</span>}
                     {p.id === myId && <span className="tag me">tú</span>}
@@ -173,6 +197,14 @@ export default function TeamsPanel({ room, myId, isHost }: Props) {
           </section>
         );
       })}
+      {editingKit && (
+        <KitEditor
+          team={editingKit}
+          kit={room.kits[editingKit]}
+          rival={room.kits[editingKit === 'red' ? 'blue' : 'red']}
+          onClose={() => setEditingKit(null)}
+        />
+      )}
     </div>
   );
 }

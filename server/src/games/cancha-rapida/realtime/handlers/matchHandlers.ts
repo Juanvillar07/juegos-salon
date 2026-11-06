@@ -23,6 +23,15 @@ export function registerMatchHandlers(socket: ClientSocket, ctx: RealtimeContext
     ctx.broadcastState(res.room);
   });
 
+  socket.on('team:kit', (payload, ack) => {
+    if (typeof ack !== 'function') return;
+    const res = manager.setKit(playerId, payload?.team, payload?.kit);
+    if (!res.ok) return ack(res);
+    ack({ ok: true });
+    ctx.announce(res.room.code, `El host cambió el uniforme de ${TEAM_NAMES[res.team]}`);
+    ctx.broadcastState(res.room);
+  });
+
   socket.on('match:start', (ack) => {
     if (typeof ack !== 'function') return;
     const res = manager.startMatch(playerId);

@@ -4,6 +4,7 @@
  */
 export * from './constants.js';
 export * from './physics.js';
+export * from './kits.js';
 export * from './snapshot.js';
 export * from './types.js';
 export * from './events.js';

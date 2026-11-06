@@ -6,7 +6,10 @@ import {
   KICK,
   PLAYER,
   createWorld,
+  decodeSnapshot,
   detectGoal,
+  encodeSnapshot,
+  kickPower,
   resetKickoff,
   setKeys,
   stepWorld,
@@ -87,31 +90,99 @@ describe('física de la cancha', () => {
     expect(w.ball.x).toBeLessThanOrEqual(FIELD.halfWidth + FIELD.goalDepth - BALL.radius);
   });
 
-  it('solo se patea con el balón al alcance, y una vez por pulsación', () => {
-    const reach = PLAYER.radius + BALL.radius + KICK.reach;
-    const far = world({ x: -300 + reach + 10 });
-    setKeys(far.players[0], KEY.kick);
-    stepWorld(far);
-    expect(far.ball.vx).toBe(0);
+  describe('tiro cargado', () => {
+    const REACH = PLAYER.radius + BALL.radius + KICK.reach;
 
-    const near = world({ x: -300 + reach - 1 });
-    setKeys(near.players[0], KEY.kick);
-    stepWorld(near);
-    expect(near.ball.vx).toBeGreaterThan(KICK.strength * 0.9);
-    expect(near.lastTouch).toBe('a');
+    /** Mantiene patear `ticks` pasos y suelta (sin moverse). */
+    function hold(w: World, ticks: number): void {
+      setKeys(w.players[0], KEY.kick);
+      steps(w, ticks);
+      setKeys(w.players[0], 0);
+    }
 
-    // Mantener patear no vuelve a patear: hay que soltar y pulsar otra vez.
-    Object.assign(near.ball, { x: -300 + reach - 1, vx: 0, vy: 0 });
-    Object.assign(near.players[0], { x: -300, vx: 0 });
-    setKeys(near.players[0], KEY.kick);
-    stepWorld(near);
-    expect(near.ball.vx).toBeLessThan(1);
-    setKeys(near.players[0], 0);
-    Object.assign(near.ball, { x: -300 + reach - 1, vx: 0, vy: 0 });
-    Object.assign(near.players[0], { x: -300, vx: 0 });
-    setKeys(near.players[0], KEY.kick);
-    stepWorld(near);
-    expect(near.ball.vx).toBeGreaterThan(KICK.strength * 0.9);
+    it('un toque es un pase suave; mantener carga un tiro más fuerte, hasta el máximo', () => {
+      for (const ticks of [1, 20, 100]) {
+        const w = world({ x: -300 + REACH - 1 });
+        hold(w, ticks);
+        stepWorld(w);
+        expect(w.ball.vx).toBeCloseTo(kickPower(ticks) * BALL.damping, 2);
+        expect(w.lastTouch).toBe('a');
+      }
+      expect(kickPower(1)).toBeLessThan(4);
+      expect(kickPower(100)).toBe(KICK.maxPower);
+    });
+
+    it('mientras se mantiene, no patea: el tiro sale al soltar', () => {
+      const w = world({ x: -300 + REACH - 1 });
+      setKeys(w.players[0], KEY.kick);
+      steps(w, 30);
+      expect(w.ball.vx).toBe(0);
+      setKeys(w.players[0], 0);
+      stepWorld(w);
+      expect(w.ball.vx).toBeGreaterThan(KICK.minPower);
+    });
+
+    it('si se suelta un poco antes de llegar al balón, la patada lo espera; si tarda mucho, se pierde', () => {
+      const soon = world({ x: -300 + REACH + 6 }, { vx: 2 });
+      hold(soon, 1);
+      steps(soon, KICK.graceTicks);
+      expect(soon.ball.vx).toBeGreaterThan(KICK.minPower * 0.9);
+
+      const late = world({ x: -300 + REACH + 40 }, { vx: 2 });
+      hold(late, 1);
+      steps(late, 40);
+      // Solo lo empujó al llegar (conducción), sin patada.
+      expect(late.ball.vx).toBeLessThan(KICK.minPower * 0.6);
+    });
+
+    it('con efecto el tiro curva hacia el lado al que se movía el jugador, sin cambiar su rapidez', () => {
+      const straight = world({ x: -300 + REACH - 1 });
+      const curved = world({ x: -300 + REACH - 1 });
+      for (const w of [straight, curved]) hold(w, KICK.chargeTicks);
+      // El de la curva se movía hacia abajo justo al patear.
+      curved.players[0].vy = 1.5;
+      stepWorld(straight);
+      stepWorld(curved);
+      expect(curved.ballSpin).toBeGreaterThan(0);
+      steps(straight, 40);
+      steps(curved, 40);
+      expect(curved.ball.y - straight.ball.y).toBeGreaterThan(20);
+      expect(Math.hypot(curved.ball.vx, curved.ball.vy)).toBeCloseTo(Math.hypot(straight.ball.vx, straight.ball.vy), 2);
+    });
+
+    it('la carga viaja en las instantáneas', () => {
+      const w = world();
+      w.players[0].charge = KICK.chargeTicks / 2;
+      const frame = decodeSnapshot(encodeSnapshot(w, new Map([['a', 0]]), 1, 0, 0));
+      expect(frame.players.get(0)!.charge).toBeCloseTo(0.5, 1);
+    });
+  });
+
+  describe('control y rebotes', () => {
+    it('al llevar el balón no sale despedido: se queda cerca del jugador', () => {
+      const w = world({ x: -300 + PLAYER.radius + BALL.radius + 2, y: 0 });
+      setKeys(w.players[0], KEY.right);
+      steps(w, 60);
+      const gap = w.ball.x - w.players[0].x - PLAYER.radius - BALL.radius;
+      expect(gap).toBeLessThan(20);
+      expect(w.ball.x).toBeGreaterThan(-250);
+    });
+
+    it('en la red el balón muere: frena y casi no rebota', () => {
+      const w = world({ x: FIELD.halfWidth + 5, y: 0, vx: 6 });
+      steps(w, 25);
+      expect(Math.hypot(w.ball.vx, w.ball.vy)).toBeLessThan(0.5);
+      expect(w.ball.x).toBeGreaterThan(FIELD.halfWidth);
+    });
+
+    it('en las esquinas redondeadas el balón rebota sin atascarse', () => {
+      const { halfWidth: W, halfHeight: H, cornerRadius: C } = FIELD;
+      const w = world({ x: W - 40, y: H - 40, vx: 3, vy: 3 });
+      steps(w, 30);
+      const fromCorner = Math.hypot(w.ball.x - (W - C), w.ball.y - (H - C));
+      expect(fromCorner).toBeLessThanOrEqual(C - BALL.radius + 0.01);
+      expect(w.ball.vx + w.ball.vy).toBeLessThan(0);
+    });
   });
 
   it('en un choque entre jugadores se conserva la cantidad de movimiento', () => {

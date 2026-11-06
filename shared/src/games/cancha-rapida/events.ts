@@ -1,5 +1,7 @@
 import type { ChatMessage } from '../../chat.js';
 import type { Ack, CreateAck } from '../../events.js';
+import type { TeamKit } from './kits.js';
+import type { Side } from './physics.js';
 import type { RoomSettings } from './settings.js';
 import type { SnapshotPayload } from './snapshot.js';
 import type { GoalEvent, MatchResult, RoomSnapshot, Score, Team } from './types.js';
@@ -19,6 +21,8 @@ export interface ClientToServerEvents {
   'team:join': (payload: { team: Team }, ack: (res: Ack) => void) => void;
   /** Mover a otro jugador de equipo (solo el host, fuera de partido). */
   'team:move': (payload: { playerId: string; team: Team }, ack: (res: Ack) => void) => void;
+  /** Cambiar el uniforme de un equipo (solo el host, fuera de partido). */
+  'team:kit': (payload: { team: Side; kit: TeamKit }, ack: (res: Ack) => void) => void;
   'match:start': (ack: (res: Ack) => void) => void;
   /** Terminar el partido en curso sin resultados (solo el host). */
   'match:stop': () => void;

@@ -1,5 +1,5 @@
 import { useEffect, useRef, type MutableRefObject } from 'react';
-import type { RoomState } from '@typeracer/shared/cancha-rapida';
+import { KEY, KICK, TICK_MS, type RoomState } from '@typeracer/shared/cancha-rapida';
 import { avatar } from '../../components/pitchStyle';
 import { project } from '../../lib/interpolation';
 import { Predictor } from '../../lib/prediction';
@@ -12,6 +12,8 @@ const MIN_DELAY_MS = 80;
 const MAX_DELAY_MS = 250;
 /** No se proyecta la posición del servidor más allá de esto (si dejan de llegar instantáneas). */
 const MAX_AHEAD_MS = 250;
+/** Tras un cambio de tamaño, cuánto se espera a que se quede quieto para cambiar la resolución. */
+const RESOLUTION_SETTLE_MS = 150;
 
 interface Props {
   room: RoomState;
@@ -39,27 +41,45 @@ export default function Pitch({ room, myId, keys }: Props) {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // El canvas toma el mayor tamaño 2:1 que quepa, a la resolución real de la pantalla.
-    const resize = () => {
-      const scale = Math.min(wrap.clientWidth / WORLD_WIDTH, wrap.clientHeight / WORLD_HEIGHT);
-      const cssWidth = Math.floor(WORLD_WIDTH * scale);
-      const cssHeight = Math.floor(WORLD_HEIGHT * scale);
+    /**
+     * El canvas toma el mayor tamaño que quepa, a la resolución real de la pantalla.
+     * Cambiar `canvas.width`/`height` borra el dibujo, y el observador corre justo antes de que
+     * el navegador pinte: si se hiciera en cada cuadro de una transición (al abrir el chat), la
+     * cancha se vería en blanco. Por eso, mientras el tamaño cambia, solo se ajusta el tamaño CSS
+     * (el navegador escala el último dibujo) y la resolución se actualiza cuando se queda quieto,
+     * redibujando en el acto.
+     */
+    let cssWidth = 0;
+    let cssHeight = 0;
+    let settle: ReturnType<typeof setTimeout> | undefined;
+    const applyResolution = () => {
       const dpr = window.devicePixelRatio || 1;
+      const width = Math.round(cssWidth * dpr);
+      const height = Math.round(cssHeight * dpr);
+      if (canvas.width === width && canvas.height === height) return;
+      canvas.width = width;
+      canvas.height = height;
+      draw(performance.now());
+    };
+    const fit = () => {
+      const scale = Math.min(wrap.clientWidth / WORLD_WIDTH, wrap.clientHeight / WORLD_HEIGHT);
+      cssWidth = Math.floor(WORLD_WIDTH * scale);
+      cssHeight = Math.floor(WORLD_HEIGHT * scale);
       canvas.style.width = `${cssWidth}px`;
       canvas.style.height = `${cssHeight}px`;
-      canvas.width = Math.round(cssWidth * dpr);
-      canvas.height = Math.round(cssHeight * dpr);
+      clearTimeout(settle);
+      settle = setTimeout(applyResolution, RESOLUTION_SETTLE_MS);
     };
-    resize();
-    const observer = new ResizeObserver(resize);
-    observer.observe(wrap);
 
     let predictor: Predictor | null = null;
+    // Desde cuándo se mantiene patear (para el aro de carga propio, sin esperar al servidor).
+    let chargeStart: number | null = null;
     let last = performance.now();
     let raf = 0;
 
-    const frame = (now: number) => {
-      const elapsed = Math.min(now - last, 100);
+    /** Un cuadro: predicción propia y dibujo (lo llama el bucle y, al cambiar la resolución, el ajuste). */
+    const draw = (now: number) => {
+      const elapsed = Math.min(Math.max(0, now - last), 100);
       last = now;
       const current = roomRef.current;
       const me = current.players.find((p) => p.id === myId);
@@ -67,7 +87,7 @@ export default function Pitch({ room, myId, keys }: Props) {
       const players = new Map<number, PitchPlayer>();
       for (const p of current.players) {
         if (p.slot !== null && p.team !== 'spectator') {
-          players.set(p.slot, { nickname: p.nickname, avatar: avatar(p.nickname), team: p.team });
+          players.set(p.slot, { nickname: p.nickname, avatar: avatar(p.nickname), kit: current.kits[p.team] });
         }
       }
 
@@ -87,13 +107,29 @@ export default function Pitch({ room, myId, keys }: Props) {
         predictor.correct(project(serverMe, ahead), elapsed);
       }
 
-      drawPitch(ctx, canvas.width, canvas.height, view, players, mySlot, predictor?.body ?? null);
-      raf = requestAnimationFrame(frame);
+      if (keys.current & KEY.kick) chargeStart ??= now;
+      else chargeStart = null;
+      const ownCharge = chargeStart === null ? 0 : Math.min(1, (now - chargeStart) / (KICK.chargeTicks * TICK_MS));
+
+      drawPitch(ctx, canvas.width, canvas.height, view, players, current.kits, mySlot, predictor?.body ?? null, ownCharge);
     };
-    raf = requestAnimationFrame(frame);
+
+    const loop = (now: number) => {
+      draw(now);
+      raf = requestAnimationFrame(loop);
+    };
+
+    // Primer ajuste con la resolución ya aplicada; después, cada cambio de tamaño pasa por `fit`.
+    fit();
+    clearTimeout(settle);
+    applyResolution();
+    const observer = new ResizeObserver(fit);
+    observer.observe(wrap);
+    raf = requestAnimationFrame(loop);
 
     return () => {
       cancelAnimationFrame(raf);
+      clearTimeout(settle);
       observer.disconnect();
     };
   }, [myId, keys]);

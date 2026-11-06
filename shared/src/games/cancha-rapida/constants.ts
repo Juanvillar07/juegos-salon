@@ -16,6 +16,10 @@ export const MAX_ROOM_PLAYERS = 12;
 /** Tras un gol, la jugada sigue (el balón en la red) antes de volver al saque. */
 export const GOAL_PAUSE_MS = 2000;
 
-/** Color de cada equipo (camisetas, chat y marcador). */
-export const TEAM_COLORS = { red: '#e5534b', blue: '#4a8fe7', spectator: '#8b8b93' } as const;
-export const TEAM_NAMES = { red: 'Rojo', blue: 'Azul', spectator: 'Espectadores' } as const;
+/**
+ * Nombres de los equipos. Por dentro siguen siendo `red` (el local: defiende la izquierda y saca
+ * primero) y `blue` (el visitante); los colores los pone el uniforme que elige el host (kits.ts).
+ */
+export const TEAM_NAMES = { red: 'Local', blue: 'Visitante', spectator: 'Espectadores' } as const;
+/** Color de los espectadores (en el chat y la sala), que no llevan uniforme. */
+export const SPECTATOR_COLOR = '#8b8b93';
