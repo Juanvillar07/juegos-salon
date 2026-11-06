@@ -204,6 +204,21 @@ describe('Cancha Rápida: desempate y récord', () => {
     expect(manager.endMatch('ROOM0')).toMatchObject({ winner: null, tiebreak: null, penalties: null });
   });
 
+  it('en los penaltis, el estado da el plazo para tirar con la hora de la sala', () => {
+    const manager = new RoomManager({ generateCode: () => 'ROOM0', countdownMs: 0, now: () => 50_000 });
+    manager.createRoom('a', 'Ana');
+    manager.joinRoom('ROOM0', 'p0', 'Jugador 0');
+    manager.updateSettings('a', { tiebreak: 'penalties' });
+    manager.startMatch('a');
+    const room = manager.getRoom('ROOM0')!;
+    while (room.match!.stage !== 'penalties') room.match!.step();
+    const { stage, penalties } = manager.toState(room);
+    expect(stage).toBe('penalties');
+    expect(penalties).toMatchObject({ team: 'red', shooterId: 'a', keeperId: 'p0', shotTaken: false });
+    // 1 s de pausa previa más los 6 s para tirar.
+    expect(penalties!.deadline).toBeCloseTo(57_000);
+  });
+
   it('cada partido suma al récord de la sala: jugados, victorias y goles (sin autogoles)', () => {
     const { manager, room } = setup(1);
     manager.startMatch('a');

@@ -53,6 +53,10 @@ export interface PenaltyState {
   team: Side;
   shooterId: string | null;
   keeperId: string | null;
+  /** El que tira ya pateó: el arquero puede salir de la línea y el que tira ya no se mueve. */
+  shotTaken: boolean;
+  /** Hora del servidor en que se acaba el tiempo para tirar (null si ya tiró o se muestra el resultado). */
+  deadline: number | null;
 }
 
 export interface MatchResult {

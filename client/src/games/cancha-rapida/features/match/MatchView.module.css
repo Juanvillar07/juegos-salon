@@ -96,6 +96,10 @@
   color: #fff;
 }
 
+.penaltyTurn .penaltyHurry {
+  color: #ff8a80;
+}
+
 .menuButton {
   padding: 7px 12px;
   font-size: 0.85rem;

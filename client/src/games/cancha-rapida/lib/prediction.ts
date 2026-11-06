@@ -20,14 +20,23 @@ export class Predictor {
     this.body = { id, team, ...start, keys: 0, charge: 0, pendingKick: null };
   }
 
-  /** Avanza el tiempo transcurrido en pasos fijos, como el servidor (con la barrera del saque, si la hay). */
-  advance(elapsedMs: number, keys: number, kickoff: Side | null = null, keeperSide: Side | null = null): void {
+  /**
+   * Avanza el tiempo transcurrido en pasos fijos, como el servidor (con la barrera del saque, si
+   * la hay, y el área del arquero en un penalti: `keeperOnLine` mientras no hayan pateado).
+   */
+  advance(
+    elapsedMs: number,
+    keys: number,
+    kickoff: Side | null = null,
+    keeperSide: Side | null = null,
+    keeperOnLine = false,
+  ): void {
     this.pending = Math.min(this.pending + elapsedMs, MAX_PENDING_MS);
     this.body.keys = keys;
     // Con margen: sumar duraciones de paso en coma flotante puede quedarse una milésima corto.
     while (this.pending >= TICK_MS - 1e-6) {
       this.pending -= TICK_MS;
-      stepLonePlayer(this.body, kickoff, keeperSide);
+      stepLonePlayer(this.body, kickoff, keeperSide, keeperOnLine);
     }
   }
 
