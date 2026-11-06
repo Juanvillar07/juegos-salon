@@ -1,6 +1,7 @@
 import { performance } from 'node:perf_hooks';
 import type { Namespace, Socket } from 'socket.io';
 import {
+  PENALTY_MAX_ROUNDS,
   SNAPSHOT_EVERY,
   TEAM_NAMES,
   TICK_MS,
@@ -102,14 +103,19 @@ export class RealtimeContext {
         if (events.stage === 'penalties') this.announce(code, 'Empate al final: ¡a los penaltis!');
         if (events.penalty) {
           const { team, scored, shooterName } = events.penalty;
-          const shots = match.penaltyState!.shots;
+          const shots = match.penaltyShots!;
           const tally = `${shots.red.filter(Boolean).length}–${shots.blue.filter(Boolean).length}`;
           this.announce(
             code,
             `${shooterName} ${scored ? 'marca' : 'falla'} el penalti para ${TEAM_NAMES[team]} · ${tally}`,
           );
         }
-        if (events.stage || events.penalty || events.penaltySetup) this.broadcastState(current);
+        if (events.forfeit) {
+          const loser = events.forfeit === 'red' ? 'blue' : 'red';
+          this.announce(code, `${TEAM_NAMES[loser]} se quedó sin jugadores: gana ${TEAM_NAMES[events.forfeit]}`);
+        }
+        if (events.penaltyDraw) this.announce(code, `Siguen empatados tras ${PENALTY_MAX_ROUNDS} rondas de penaltis: empate`);
+        if (events.stage || events.penalty || events.penaltySetup || events.penaltyShot) this.broadcastState(current);
         if (events.ended) return this.finishMatch(code);
       }
       if (snapshotDue) {

@@ -17,13 +17,16 @@ interface Props {
 
 /** Cómo se rompió el empate, si hizo falta: "Ganó Local 3–2 en los penaltis". */
 function describeTiebreak(result: MatchResult): string | null {
-  if (!result.winner) return null;
-  if (result.tiebreak === 'goldenGoal') return `${TEAM_NAMES[result.winner]} ganó con gol de oro en la prórroga`;
-  const shots = result.penalties;
+  const { winner, penalties: shots } = result;
   if (result.tiebreak === 'penalties' && shots) {
     const goals = (team: Side) => shots[team].filter(Boolean).length;
-    return `${TEAM_NAMES[result.winner]} ganó ${goals('red')}–${goals('blue')} en los penaltis`;
+    if (!winner) return `Siguen empatados tras ${Math.max(shots.red.length, shots.blue.length)} rondas de penaltis`;
+    const loser: Side = winner === 'red' ? 'blue' : 'red';
+    // Si no iba por delante, ganó porque el rival se quedó sin jugadores.
+    if (goals(winner) <= goals(loser)) return `${TEAM_NAMES[winner]} ganó la tanda: el rival se quedó sin jugadores`;
+    return `${TEAM_NAMES[winner]} ganó ${goals('red')}–${goals('blue')} en los penaltis`;
   }
+  if (winner && result.tiebreak === 'goldenGoal') return `${TEAM_NAMES[winner]} ganó con gol de oro en la prórroga`;
   return null;
 }
 

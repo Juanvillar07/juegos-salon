@@ -1,5 +1,6 @@
 import {
   GOAL_PAUSE_MS,
+  PENALTY_MAX_ROUNDS,
   PENALTY_ROUNDS,
   TICK_MS,
   createWorld,
@@ -34,26 +35,31 @@ export interface StepEvents {
   penalty?: { team: Side; scored: boolean; shooterName: string };
   /** Hay un penalti nuevo preparado (cambian el que tira y el arquero). */
   penaltySetup?: boolean;
+  /** El que tira acaba de patear. */
+  penaltyShot?: boolean;
+  /** Un equipo se quedó sin jugadores en la tanda: gana este. */
+  forfeit?: Side;
+  /** Siguen igualados tras el tope de rondas: empate. */
+  penaltyDraw?: boolean;
 }
 
 /** Tiempo para tirar el penalti; si no, cuenta como fallado. */
-const PENALTY_SHOT_TICKS = Math.round(6000 / TICK_MS);
+export const PENALTY_SHOT_TICKS = Math.round(6000 / TICK_MS);
+/** Tras la patada, si en este tiempo no entró, es fallo (o parada). */
+export const PENALTY_RESOLVE_TICKS = Math.round(3000 / TICK_MS);
 /** Pausa antes de cada penalti (para ver quién tira) y después (para ver el resultado). */
-const PENALTY_READY_TICKS = Math.round(1000 / TICK_MS);
-const PENALTY_RESULT_TICKS = Math.round(1500 / TICK_MS);
-/** Si el arquero la toca y no entra en este tiempo, es parada. */
-const KEEPER_SAVE_TICKS = 40;
+export const PENALTY_READY_TICKS = Math.round(1000 / TICK_MS);
+export const PENALTY_RESULT_TICKS = Math.round(1500 / TICK_MS);
 
 interface PenaltyRun {
   shots: Record<Side, boolean[]>;
   team: Side;
   shooterId: string | null;
   keeperId: string | null;
-  /** Pasos desde que se preparó el penalti. */
+  /** Pasos desde que se preparó el penalti (sin contar la pausa previa). */
   ticks: number;
-  /** Paso en que el que tira tocó el balón (solo tiene un toque). */
+  /** Paso en que el que tira pateó (solo tiene una patada). */
   shotAt: number | null;
-  keeperTouchAt: number | null;
   /** Pasos que quedan mostrando el resultado antes del siguiente. */
   pause: number;
 }
@@ -92,6 +98,11 @@ export class Match {
   /** Siguiente que tira y que ataja de cada equipo. */
   private shooterTurn: Record<Side, number> = { red: 0, blue: 0 };
   private keeperTurn: Record<Side, number> = { red: 0, blue: 0 };
+  /**
+   * Últimas teclas de cada jugador, aunque se ignoren (fuera de la cancha en los penaltis). El
+   * cliente solo las manda al cambiar: al entrar a un penalti se le aplican las que ya mantiene.
+   */
+  private readonly inputs = new Map<string, number>();
 
   constructor(
     players: MatchPlayer[],
@@ -109,20 +120,32 @@ export class Match {
     return this.played * TICK_MS;
   }
 
-  /** La tanda de penaltis, para el estado de la sala. */
-  get penaltyState(): PenaltyState | null {
+  /** Lanzamientos de la tanda de penaltis (null si no hubo), para el resultado. */
+  get penaltyShots(): Record<Side, boolean[]> | null {
+    const pen = this.penalty;
+    return pen ? { red: [...pen.shots.red], blue: [...pen.shots.blue] } : null;
+  }
+
+  /** La tanda de penaltis, para el estado de la sala; `now` es la hora del servidor (para el plazo del tiro). */
+  penaltyState(now: number): PenaltyState | null {
     const pen = this.penalty;
     if (!pen) return null;
+    const waiting = pen.shotAt === null && pen.pause === 0;
+    // Quedan la pausa previa (si aún no terminó) y lo que falta del tiempo para tirar.
+    const ticksLeft = this.frozen + PENALTY_SHOT_TICKS - pen.ticks;
     return {
-      shots: { red: [...pen.shots.red], blue: [...pen.shots.blue] },
+      shots: this.penaltyShots!,
       team: pen.team,
       shooterId: pen.shooterId,
       keeperId: pen.keeperId,
+      shotTaken: pen.shotAt !== null,
+      deadline: waiting ? now + ticksLeft * TICK_MS : null,
     };
   }
 
-  /** Teclas de un jugador; se ignoran si no está en la cancha (o ya tiró su penalti). */
+  /** Teclas de un jugador; se ignoran si no está en la cancha (o ya tiró su penalti), pero se recuerdan. */
   setKeys(playerId: string, keys: number): void {
+    this.inputs.set(playerId, keys);
     const pen = this.penalty;
     if (pen && pen.shotAt !== null && playerId === pen.shooterId) return;
     const body = this.world.players.find((p) => p.id === playerId);
@@ -136,6 +159,7 @@ export class Match {
       if (i >= 0) list.splice(i, 1);
     }
     if (this.world.lastTouch === playerId) this.world.lastTouch = null;
+    this.inputs.delete(playerId);
   }
 
   get playersOnPitch(): number {
@@ -145,6 +169,9 @@ export class Match {
   step(): StepEvents {
     if (this.ended) return {};
     this.tick++;
+    // Si alguien se fue en plena tanda, se resuelve antes que nada (también en la pausa previa).
+    const rosterChange = this.stage === 'penalties' ? this.penaltyRosterChange() : null;
+    if (rosterChange) return rosterChange;
     if (this.frozen > 0) {
       this.frozen--;
       return {};
@@ -186,7 +213,6 @@ export class Match {
       keeperId: null,
       ticks: 0,
       shotAt: null,
-      keeperTouchAt: null,
       pause: 0,
     };
     if (!this.setupPenalty('red')) return this.end();
@@ -206,9 +232,32 @@ export class Match {
     const shooter = shooters[this.shooterTurn[team]++ % shooters.length];
     const keeper = keepers[this.keeperTurn[other(team)]++ % keepers.length];
     setupPenalty(this.world, shooter, keeper, team);
-    Object.assign(pen, { team, shooterId: shooter.id, keeperId: keeper.id, ticks: 0, shotAt: null, keeperTouchAt: null, pause: 0 });
+    // Las teclas que ya mantienen (el cliente no las vuelve a mandar si no cambian).
+    for (const body of [shooter, keeper]) setKeys(body, this.inputs.get(body.id) ?? 0, this.world.chargedShot);
+    Object.assign(pen, { team, shooterId: shooter.id, keeperId: keeper.id, ticks: 0, shotAt: null, pause: 0 });
     this.frozen = PENALTY_READY_TICKS;
     return true;
+  }
+
+  /**
+   * Alguien se fue en plena tanda: si un equipo se quedó sin nadie, gana el otro; si era el que
+   * tira o el arquero del penalti en juego, se repite con el siguiente de la rotación (no cuenta).
+   */
+  private penaltyRosterChange(): StepEvents | null {
+    const pen = this.penalty!;
+    const empty = (['red', 'blue'] as const).filter((team) => !this.bodies.some((p) => p.team === team));
+    if (empty.length > 0) {
+      if (empty.length === 2) return this.end();
+      const winner = other(empty[0]);
+      this.penaltyWinner = winner;
+      return { ...this.end(), forfeit: winner };
+    }
+    const onPitch = (id: string | null) => this.world.players.some((p) => p.id === id);
+    if (pen.pause === 0 && pen.shotAt === null && !(onPitch(pen.shooterId) && onPitch(pen.keeperId))) {
+      this.setupPenalty(pen.team);
+      return { penaltySetup: true };
+    }
+    return null;
   }
 
   private stepPenalty(): StepEvents {
@@ -218,9 +267,10 @@ export class Match {
       // El balón sigue su camino mientras se muestra el resultado.
       pen.pause--;
       if (pen.pause > 0) return {};
-      const winner = this.decidePenalties();
-      if (winner) {
-        this.penaltyWinner = winner;
+      const decision = this.decidePenalties();
+      if (decision === 'draw') return { ...this.end(), penaltyDraw: true };
+      if (decision) {
+        this.penaltyWinner = decision;
         return this.end();
       }
       if (!this.setupPenalty(other(pen.team))) return this.end();
@@ -228,14 +278,14 @@ export class Match {
     }
 
     pen.ticks++;
-    const { world } = this;
-    if (pen.shotAt === null && world.lastTouch === pen.shooterId) {
-      // Un solo toque: después, el que tira ya no se mueve.
+    // El penalti se lanza con la patada del que tira (al chocar el balón con el cuerpo no se mueve).
+    if (pen.shotAt === null && this.world.penaltyShooter === null) {
       pen.shotAt = pen.ticks;
-      const shooter = world.players.find((p) => p.id === pen.shooterId);
-      if (shooter) Object.assign(shooter, { keys: 0, charge: 0, pendingKick: null });
+      // Una sola patada: el que tira se queda quieto (sin seguir de largo contra el balón).
+      const shooter = this.world.players.find((p) => p.id === pen.shooterId);
+      if (shooter) Object.assign(shooter, { keys: 0, charge: 0, pendingKick: null, vx: 0, vy: 0 });
+      return { penaltyShot: true };
     }
-    if (pen.keeperTouchAt === null && world.lastTouch === pen.keeperId) pen.keeperTouchAt = pen.ticks;
 
     const scored = this.penaltyOutcome(pen);
     if (scored === null) return {};
@@ -256,15 +306,17 @@ export class Match {
     if (Math.hypot(ball.vx, ball.vy) < 0.15) return false;
     // Rechazado (por el arquero o un poste): ya no va hacia la portería.
     if (sinceShot > 5 && towardGoal <= 0) return false;
-    if (pen.keeperTouchAt !== null && pen.ticks - pen.keeperTouchAt > KEEPER_SAVE_TICKS) return false;
+    // Se quedó dando vueltas (el arquero lo controla): fallo. Uno que entra despacio sí cuenta.
+    if (sinceShot >= PENALTY_RESOLVE_TICKS) return false;
     return null;
   }
 
   /**
    * Ganador de la tanda, si ya está decidida: en las primeras rondas, cuando el rival ya no puede
-   * alcanzarlo; después, en muerte súbita, al cerrar cada par de lanzamientos con distinto resultado.
+   * alcanzarlo; después, en muerte súbita, al cerrar cada par de lanzamientos con distinto
+   * resultado. 'draw' si siguen igualados tras el tope de rondas.
    */
-  private decidePenalties(): Side | null {
+  private decidePenalties(): Side | 'draw' | null {
     const { red, blue } = this.penalty!.shots;
     const goals = (shots: boolean[]) => shots.filter(Boolean).length;
     const [rg, bg] = [goals(red), goals(blue)];
@@ -274,6 +326,7 @@ export class Match {
       return null;
     }
     if (red.length === blue.length && rg !== bg) return rg > bg ? 'red' : 'blue';
+    if (red.length >= PENALTY_MAX_ROUNDS && blue.length >= PENALTY_MAX_ROUNDS) return 'draw';
     return null;
   }
 

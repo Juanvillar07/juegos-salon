@@ -18,6 +18,8 @@ export const GOAL_PAUSE_MS = 2000;
 
 /** Penaltis por equipo en una tanda, antes de la muerte súbita. */
 export const PENALTY_ROUNDS = 3;
+/** Tope de rondas (con la muerte súbita): si siguen igualados, el partido queda en empate. */
+export const PENALTY_MAX_ROUNDS = 10;
 
 /**
  * Nombres de los equipos. Por dentro siguen siendo `red` (el local: defiende la izquierda y saca

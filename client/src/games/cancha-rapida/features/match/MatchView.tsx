@@ -84,6 +84,8 @@ export default function MatchView({ room, myId, isHost }: Props) {
   const pen = room.penalties;
   const nickname = (id: string | null) => room.players.find((p) => p.id === id)?.nickname ?? '—';
   const penaltyFlash = usePenaltyFlash(pen, nickname);
+  // Segundos que le quedan al que tira (mientras no patea).
+  const shotLeft = pen?.deadline != null ? Math.max(0, Math.ceil((pen.deadline - now) / 1000)) : null;
 
   return (
     <div className={`${styles.match} ${chatOpen ? styles.chatOpen : ''}`} data-fit data-race>
@@ -132,6 +134,12 @@ export default function MatchView({ room, myId, isHost }: Props) {
               <PenaltyStrip shots={pen.shots} kits={room.kits} />
               <span className={styles.penaltyTurn}>
                 Tira <strong>{nickname(pen.shooterId)}</strong> · Ataja <strong>{nickname(pen.keeperId)}</strong>
+                {shotLeft !== null && (
+                  <>
+                    {' · '}
+                    <strong className={`num ${shotLeft <= 2 ? styles.penaltyHurry : ''}`}>{shotLeft} s</strong>
+                  </>
+                )}
               </span>
             </div>
           )}
@@ -214,8 +222,16 @@ function hintText(room: RoomState, myId: string, playing: boolean): string {
   if (!playing) return 'Estás mirando como espectador: juegas en el próximo partido';
   const pen = room.penalties;
   if (pen) {
-    if (pen.shooterId === myId) return 'Tiras tú: un solo toque, así que apunta bien · tienes 6 segundos';
-    if (pen.keeperId === myId) return 'Atajas tú: muévete dentro de tu área para parar el tiro';
+    if (pen.shooterId === myId) {
+      return pen.shotTaken
+        ? 'Ya tiraste: a ver si entra'
+        : 'Tiras tú: el balón no se mueve hasta que patees · acércate, apunta y patea (una sola patada)';
+    }
+    if (pen.keeperId === myId) {
+      return pen.shotTaken
+        ? 'Atajas tú: ¡ya patearon! Puedes salir de la línea'
+        : 'Atajas tú: quédate en la línea (muévete de lado) hasta que patee';
+    }
     return 'Tanda de penaltis: espera tu turno para tirar o atajar';
   }
   return room.settings.chargedShot

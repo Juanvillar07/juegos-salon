@@ -406,7 +406,7 @@ export class RoomManager {
       durationMs: match.clockMs,
       players: match.players.map((p) => ({ ...p })),
       tiebreak: match.stage === 'regular' ? null : match.stage,
-      penalties: match.penaltyState ? { ...match.penaltyState.shots } : null,
+      penalties: match.penaltyShots,
     };
     // Récord de la sala: cuenta a quienes jugaron y siguen en ella.
     for (const p of match.players) {
@@ -463,7 +463,7 @@ export class RoomManager {
       goals,
       startAt: room.startAt,
       stage: match?.stage ?? null,
-      penalties: match?.penaltyState ?? null,
+      penalties: match?.penaltyState(this.now()) ?? null,
       result: room.result,
     };
   }

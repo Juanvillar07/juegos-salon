@@ -38,6 +38,12 @@ export const PLAYER = {
 
 export const BALL = { radius: 10, invMass: 1, damping: 0.99, bounce: 0.5 } as const;
 export const POST_RADIUS = 8;
+/**
+ * Antes de la patada del penalti el arquero está en la línea: llega de lado hasta tocar los
+ * postes (así no choca con ellos, y la predicción del cliente, que no tiene postes, coincide).
+ */
+export const KEEPER_LINE_MAX_Y =
+  FIELD.goalHalfHeight - Math.sqrt((PLAYER.radius + POST_RADIUS) ** 2 - PLAYER.radius ** 2);
 /** Rebote de paredes y postes (se multiplica por el del balón). */
 const WALL_BOUNCE = 1;
 /**
@@ -124,12 +130,17 @@ export interface World {
   chargedShot: boolean;
   /** En un penalti, el arquero y la portería que defiende: no puede salir de su área. */
   keeper: { id: string; side: Side } | null;
+  /**
+   * En un penalti, el que tira, hasta que patea: mientras tanto el balón no se mueve del punto
+   * (chocarlo con el cuerpo no lo empuja ni cuenta como tiro) y el arquero no sale de la línea.
+   */
+  penaltyShooter: string | null;
 }
 
 /** Penaltis: distancia del punto a la línea de gol y área en la que se mueve el arquero. */
 export const PENALTY = {
   spotDistance: 150,
-  /** El arquero puede adelantarse hasta aquí desde la línea… */
+  /** Tras la patada, el arquero puede adelantarse hasta aquí desde la línea… */
   keeperDepth: 60,
   /** …y salirse de los postes hasta aquí. */
   keeperSideMargin: 25,
@@ -171,6 +182,7 @@ export function createWorld(players: { id: string; team: Side }[], { chargedShot
     kickoff: null,
     chargedShot,
     keeper: null,
+    penaltyShooter: null,
   };
   resetKickoff(world, 'red');
   return world;
@@ -212,23 +224,30 @@ export function setupPenalty(world: World, shooter: PlayerBody, keeper: PlayerBo
   world.ballSpin = 0;
   world.kickoff = null;
   world.keeper = { id: keeper.id, side: team === 'red' ? 'blue' : 'red' };
+  world.penaltyShooter = shooter.id;
 }
 
-/** El arquero de un penalti no sale de su área (delante de la portería que defiende `side`). */
-export function constrainKeeper(p: Disc, side: Side): void {
+/**
+ * El arquero de un penalti no sale de su área (delante de la portería que defiende `side`).
+ * Con `onLine` (antes de la patada) solo se mueve sobre la línea, de lado a lado.
+ */
+export function constrainKeeper(p: Disc, side: Side, onLine = false): void {
   // El azul defiende la portería de la derecha.
   const s = side === 'blue' ? 1 : -1;
   const back = FIELD.halfWidth - PLAYER.radius;
   const front = FIELD.halfWidth - PENALTY.keeperDepth;
   const depth = p.x * s;
-  if (depth > back) {
+  if (onLine) {
+    p.x = s * back;
+    p.vx = 0;
+  } else if (depth > back) {
     p.x = s * back;
     if (p.vx * s > 0) p.vx = 0;
   } else if (depth < front) {
     p.x = s * front;
     if (p.vx * s < 0) p.vx = 0;
   }
-  const maxY = FIELD.goalHalfHeight + PENALTY.keeperSideMargin;
+  const maxY = onLine ? KEEPER_LINE_MAX_Y : FIELD.goalHalfHeight + PENALTY.keeperSideMargin;
   if (Math.abs(p.y) > maxY) {
     p.y = Math.sign(p.y) * maxY;
     p.vy = 0;
@@ -266,12 +285,17 @@ export function stepWorld(world: World): void {
     if (world.chargedShot && p.keys & KEY.kick) p.charge = Math.min(p.charge + 1, KICK.chargeTicks);
   }
   for (const p of players) {
+    // En un penalti, hasta la patada solo puede patear el que tira.
+    if (world.penaltyShooter !== null && p.id !== world.penaltyShooter) continue;
     const spin = kick(p, ball);
     if (spin !== null) {
       world.lastTouch = p.id;
       world.ballSpin = spin;
+      world.penaltyShooter = null;
     }
   }
+  // El balón del penalti, aún sin patear, es como un poste: quien lo choca rebota.
+  const ballInvMass = world.penaltyShooter !== null ? 0 : BALL.invMass;
   for (const p of players) move(p, PLAYER.damping);
   move(ball, BALL.damping);
   curve(world);
@@ -283,7 +307,7 @@ export function stepWorld(world: World): void {
   }
   // Un toque, un poste o una pared le quitan el efecto al balón.
   for (const p of players) {
-    if (collide(p, ball, PLAYER.invMass, BALL.invMass, PLAYER.radius + BALL.radius, DRIBBLE_BOUNCE)) {
+    if (collide(p, ball, PLAYER.invMass, ballInvMass, PLAYER.radius + BALL.radius, DRIBBLE_BOUNCE) && ballInvMass > 0) {
       world.lastTouch = p.id;
       world.ballSpin = 0;
     }
@@ -304,21 +328,27 @@ export function stepWorld(world: World): void {
   for (const p of players) {
     constrainPlayer(p);
     if (world.kickoff) kickoffBarrier(p, world.kickoff);
-    if (world.keeper?.id === p.id) constrainKeeper(p, world.keeper.side);
+    if (world.keeper?.id === p.id) constrainKeeper(p, world.keeper.side, world.penaltyShooter !== null);
   }
 }
 
 /**
  * Paso de un jugador solo (sin choques): lo usa el cliente para que su propio jugador responda
  * al instante, antes de que llegue la posición del servidor. Respeta la barrera del saque y, si
- * es el arquero de un penalti, su área (`keeperSide`: la portería que defiende).
+ * es el arquero de un penalti, su área (`keeperSide`: la portería que defiende; `keeperOnLine`:
+ * aún no patearon, así que no sale de la línea).
  */
-export function stepLonePlayer(player: PlayerBody, kickoff: Side | null = null, keeperSide: Side | null = null): void {
+export function stepLonePlayer(
+  player: PlayerBody,
+  kickoff: Side | null = null,
+  keeperSide: Side | null = null,
+  keeperOnLine = false,
+): void {
   accelerate(player);
   move(player, PLAYER.damping);
   constrainPlayer(player);
   if (kickoff) kickoffBarrier(player, kickoff);
-  if (keeperSide) constrainKeeper(player, keeperSide);
+  if (keeperSide) constrainKeeper(player, keeperSide, keeperOnLine);
 }
 
 /** Gol si el balón cruzó entero la línea dentro de una portería: anota el equipo que atacaba ese lado. */
