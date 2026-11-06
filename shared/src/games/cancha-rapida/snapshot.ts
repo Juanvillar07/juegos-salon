@@ -1,4 +1,4 @@
-import { KEY, type Disc, type Side, type World } from './physics.js';
+import { KEY, KICK, type Disc, type Side, type World } from './physics.js';
 
 /**
  * Instantánea compacta de la cancha (30 por segundo): enteros en arrays en lugar de objetos,
@@ -21,11 +21,14 @@ export interface SnapshotPayload {
 
 const POS = 10;
 const VEL = 100;
-/** Bandera: mantiene pulsado patear (se dibuja un aro). */
+/** Bandera: mantiene pulsado patear (se dibuja un aro). Los bits 1–4 llevan la carga del tiro (0–15). */
 const FLAG_KICKING = 1;
+const CHARGE_LEVELS = 15;
 
 export interface PlayerFrame extends Disc {
   kicking: boolean;
+  /** Carga del tiro, de 0 a 1. */
+  charge: number;
 }
 
 export interface Frame {
@@ -53,7 +56,10 @@ export function encodeSnapshot(
     c: Math.round(clockMs),
     o: world.kickoff === 'red' ? 1 : world.kickoff === 'blue' ? 2 : 0,
     b: disc(world.ball),
-    p: world.players.map((p) => [slots.get(p.id) ?? -1, ...disc(p), p.keys & KEY.kick ? FLAG_KICKING : 0]),
+    p: world.players.map((p) => {
+      const charge = Math.round((Math.min(p.charge, KICK.chargeTicks) / KICK.chargeTicks) * CHARGE_LEVELS);
+      return [slots.get(p.id) ?? -1, ...disc(p), (p.keys & KEY.kick ? FLAG_KICKING : 0) | (charge << 1)];
+    }),
   };
 }
 
@@ -65,6 +71,11 @@ export function decodeSnapshot(s: SnapshotPayload): Frame {
     clockMs: s.c,
     kickoff: s.o === 1 ? 'red' : s.o === 2 ? 'blue' : null,
     ball: disc(s.b),
-    players: new Map(s.p.map(([slot, ...rest]) => [slot, { ...disc(rest), kicking: (rest[4] & FLAG_KICKING) !== 0 }])),
+    players: new Map(
+      s.p.map(([slot, ...rest]) => [
+        slot,
+        { ...disc(rest), kicking: (rest[4] & FLAG_KICKING) !== 0, charge: ((rest[4] >> 1) & 15) / CHARGE_LEVELS },
+      ]),
+    ),
   };
 }

@@ -36,7 +36,7 @@ export const GAMES: GameEntry[] = [
     id: 'cancha-rapida',
     name: 'Cancha Rápida',
     tagline: 'Fútbol en tiempo real',
-    description: 'Rojos contra azules en una cancha vista desde arriba: muévete con el teclado, patea y mete más goles.',
+    description: 'Locales contra visitantes en una cancha vista desde arriba: muévete con el teclado, patea y mete más goles.',
     path: '/cancha-rapida',
     players: '1–8 jugadores',
     tags: ['Multijugador', 'Equipos', 'Chat'],

@@ -1,11 +1,21 @@
-/* La cancha y el chat caben justo en la ventana: la cancha toma todo el espacio que haya
-   (el chat es estrecho para dejarle el máximo de ancho). */
+/* La cancha toma todo el ancho; el chat es un panel plegable a la derecha. Al abrirlo, su
+   columna crece y la cancha se encoge con una transición (el canvas se ajusta solo). */
 .match {
+  --chat-width: 0px;
+  --chat-gap: 0px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 260px;
-  gap: 20px;
+  grid-template-columns: minmax(0, 1fr) var(--chat-width);
+  column-gap: var(--chat-gap);
   height: calc(100dvh - 76px - 44px);
   min-height: 420px;
+  transition:
+    grid-template-columns var(--duration-slow) var(--ease-smooth-out),
+    column-gap var(--duration-slow) var(--ease-smooth-out);
+}
+
+.chatOpen {
+  --chat-width: 260px;
+  --chat-gap: 20px;
 }
 
 .stage {
@@ -109,6 +119,7 @@
 }
 
 .goal strong {
+  color: #fff;
   font-size: 3.4rem;
   line-height: 1;
   letter-spacing: -0.03em;
@@ -148,6 +159,46 @@
   flex-direction: column;
   gap: 10px;
   min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.sideHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.close {
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.close:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+/* Mensajes sin leer con el chat cerrado. */
+.unread {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--bad);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
 }
 
 @keyframes pop {
@@ -158,6 +209,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .match {
+    transition: none;
+  }
   .countdown,
   .goal,
   .menu {
@@ -166,8 +220,12 @@
 }
 
 @media (max-width: 1000px) {
-  .match {
+  .match,
+  .chatOpen {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(300px, 1fr) 220px;
+    grid-template-rows: minmax(300px, 1fr) auto;
+  }
+  .chatOpen .side {
+    height: 220px;
   }
 }

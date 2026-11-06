@@ -7,12 +7,14 @@ import {
   type ChatMessage,
 } from '@typeracer/shared';
 import {
+  DEFAULT_KITS,
   DEFAULT_SETTINGS,
   MAX_PER_TEAM,
   MAX_ROOM_PLAYERS,
-  TEAM_COLORS,
+  SPECTATOR_COLOR,
   TEAM_NAMES,
   isValidKeys,
+  validateKit,
   validateScoreLimit,
   validateTimeLimit,
   type MatchResult,
@@ -20,6 +22,7 @@ import {
   type RoomState,
   type Side,
   type Team,
+  type TeamKit,
 } from '@typeracer/shared/cancha-rapida';
 import { generateRoomCode, normalizeRoomCode } from '../../../common/roomCode.js';
 import { Match } from './Match.js';
@@ -94,6 +97,7 @@ export class RoomManager {
       phase: 'lobby',
       players: new Map(),
       settings: { ...DEFAULT_SETTINGS },
+      kits: { red: { ...DEFAULT_KITS.red }, blue: { ...DEFAULT_KITS.blue } },
       match: null,
       matchId: 0,
       startAt: null,
@@ -198,7 +202,7 @@ export class RoomManager {
       kind: 'player',
       playerId,
       nickname: player.nickname,
-      color: TEAM_COLORS[player.team],
+      color: player.team === 'spectator' ? SPECTATOR_COLOR : room.kits[player.team].primary,
       text,
     });
     return { ok: true, room, message };
@@ -241,6 +245,20 @@ export class RoomManager {
   }
 
   // --------------------------------------------------------------- equipos
+
+  /** El host cambia el uniforme de un equipo (fuera de partido). */
+  setKit(hostId: string, team: unknown, kit: unknown): Result<{ room: Room; team: Side }> {
+    const room = this.getRoomOfPlayer(hostId);
+    if (!room) return { ok: false, error: 'No estás en ninguna sala' };
+    if (room.hostId !== hostId) return { ok: false, error: 'Solo el host puede cambiar los uniformes' };
+    if (room.phase === 'playing') return { ok: false, error: 'Los uniformes se cambian entre partidos' };
+    if (team !== 'red' && team !== 'blue') return { ok: false, error: 'Ese equipo no existe' };
+    const error = validateKit(kit, room.kits[team === 'red' ? 'blue' : 'red']);
+    if (error) return { ok: false, error };
+    const { primary, secondary, pattern } = kit as TeamKit;
+    room.kits[team] = { primary, secondary, pattern };
+    return { ok: true, room, team };
+  }
 
   /** Pasarse a un equipo o a espectadores. Los equipos se arman entre partidos. */
   joinTeam(playerId: string, team: unknown): Result<{ room: Room }> {
@@ -379,6 +397,7 @@ export class RoomManager {
         goals: goals.filter((g) => g.scorerId === p.id && !g.ownGoal).length,
       })),
       settings: room.settings,
+      kits: { red: { ...room.kits.red }, blue: { ...room.kits.blue } },
       score: match ? { ...match.score } : (room.result?.score ?? { red: 0, blue: 0 }),
       goals,
       startAt: room.startAt,

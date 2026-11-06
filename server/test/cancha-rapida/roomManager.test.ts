@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { KEY, MAX_PER_TEAM } from '@typeracer/shared/cancha-rapida';
+import { DEFAULT_KITS, KEY, MAX_PER_TEAM, type TeamKit } from '@typeracer/shared/cancha-rapida';
 import { RoomManager } from '../../src/games/cancha-rapida/domain/RoomManager.js';
 
 function setup(extra = 1) {
@@ -101,5 +101,42 @@ describe('Cancha Rápida: salas y equipos', () => {
     expect(manager.kick('a', 'p0')).toMatchObject({ ok: true, nickname: 'Jugador 0' });
     manager.leaveRoom('p0');
     expect(manager.joinRoom('ROOM0', 'p0', 'Jugador 0')).toMatchObject({ ok: false });
+  });
+});
+
+describe('Cancha Rápida: uniformes', () => {
+  const GREEN: TeamKit = { primary: '#2f9a5a', secondary: '#f4f4f2', pattern: 'stripes' };
+
+  it('la sala empieza con los uniformes por defecto y el host puede cambiarlos', () => {
+    const { manager, room } = setup(1);
+    expect(manager.toState(room).kits).toEqual(DEFAULT_KITS);
+    expect(manager.setKit('a', 'red', GREEN)).toMatchObject({ ok: true, team: 'red' });
+    expect(manager.toState(room).kits.red).toEqual(GREEN);
+  });
+
+  it('solo el host, y no durante el partido', () => {
+    const { manager } = setup(1);
+    expect(manager.setKit('p0', 'red', GREEN)).toMatchObject({ ok: false });
+    manager.startMatch('a');
+    expect(manager.setKit('a', 'red', GREEN)).toMatchObject({ ok: false, error: 'Los uniformes se cambian entre partidos' });
+  });
+
+  it('se valida: colores de la paleta, principal distinto del secundario y del rival', () => {
+    const { manager } = setup(1);
+    expect(manager.setKit('a', 'red', { ...GREEN, primary: '#123456' })).toMatchObject({ ok: false });
+    expect(manager.setKit('a', 'red', { ...GREEN, secondary: GREEN.primary })).toMatchObject({ ok: false });
+    expect(manager.setKit('a', 'red', { ...GREEN, pattern: 'cuadros' })).toMatchObject({ ok: false });
+    expect(manager.setKit('a', 'red', { ...GREEN, primary: DEFAULT_KITS.blue.primary })).toMatchObject({
+      ok: false,
+      error: 'El otro equipo ya usa ese color principal',
+    });
+    expect(manager.setKit('a', 'nadie', GREEN)).toMatchObject({ ok: false });
+  });
+
+  it('en el chat, cada jugador sale con el color de su uniforme', () => {
+    const { manager } = setup(1);
+    manager.setKit('a', 'red', GREEN);
+    const res = manager.sendChat('a', 'hola');
+    expect(res).toMatchObject({ ok: true, message: { color: GREEN.primary } });
   });
 });

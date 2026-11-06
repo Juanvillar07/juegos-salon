@@ -9,7 +9,9 @@ import {
   type RoomSettings,
   type RoomSnapshot,
   type RoomState,
+  type Side,
   type Team,
+  type TeamKit,
 } from '@typeracer/shared/cancha-rapida';
 import { alertRaceStart } from '../../../shell/raceAlert';
 import { ClockSync } from '../lib/clock';
@@ -144,6 +146,11 @@ export function joinTeam(team: Team): Promise<Ack> {
 
 export function movePlayer(playerId: string, team: Team): Promise<Ack> {
   return withError((ack) => socket.emit('team:move', { playerId, team }, ack));
+}
+
+/** Cambia el uniforme de un equipo (host). Devuelve el ack para mostrar el error en el editor. */
+export function setTeamKit(team: Side, kit: TeamKit): Promise<Ack> {
+  return new Promise((resolve) => socket.emit('team:kit', { team, kit }, resolve));
 }
 
 export function startMatch(): Promise<Ack> {

@@ -1,4 +1,5 @@
 import type { PlayerStatus } from '../../types.js';
+import type { TeamKit } from './kits.js';
 import type { Side } from './physics.js';
 import type { RoomSettings } from './settings.js';
 
@@ -50,6 +51,8 @@ export interface RoomState {
   phase: MatchPhase;
   players: PlayerInfo[];
   settings: RoomSettings;
+  /** Uniforme de cada equipo (lo elige el host). */
+  kits: Record<Side, TeamKit>;
   score: Score;
   goals: GoalEvent[];
   /** Timestamp (reloj del servidor) en que termina la cuenta atrás del saque inicial. */

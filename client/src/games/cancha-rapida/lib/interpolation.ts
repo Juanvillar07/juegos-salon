@@ -58,7 +58,7 @@ export function viewAt(frames: Frame[], time: number): View | null {
   const players = new Map<number, PlayerFrame>();
   for (const [slot, pb] of b.players) {
     const pa = a.players.get(slot);
-    players.set(slot, pa ? { ...mix(pa, pb, f), kicking: pb.kicking } : pb);
+    players.set(slot, pa ? { ...mix(pa, pb, f), kicking: pb.kicking, charge: pb.charge } : pb);
   }
   return {
     ball: mix(a.ball, b.ball, f),
@@ -70,7 +70,9 @@ export function viewAt(frames: Frame[], time: number): View | null {
 
 function frameView(frame: Frame, extrapolateMs: number): View {
   const players = new Map<number, PlayerFrame>();
-  for (const [slot, p] of frame.players) players.set(slot, { ...project(p, extrapolateMs), kicking: p.kicking });
+  for (const [slot, p] of frame.players) {
+    players.set(slot, { ...project(p, extrapolateMs), kicking: p.kicking, charge: p.charge });
+  }
   return { ball: project(frame.ball, extrapolateMs), players, clockMs: frame.clockMs, kickoff: frame.kickoff };
 }
 

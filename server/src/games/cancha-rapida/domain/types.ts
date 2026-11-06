@@ -1,5 +1,5 @@
 import type { ChatMessage, PlayerStatus } from '@typeracer/shared';
-import type { MatchPhase, MatchResult, RoomSettings, Team } from '@typeracer/shared/cancha-rapida';
+import type { MatchPhase, MatchResult, RoomSettings, Side, Team, TeamKit } from '@typeracer/shared/cancha-rapida';
 import type { Match } from './Match.js';
 
 export interface Player {
@@ -18,6 +18,8 @@ export interface Room {
   /** Map conserva el orden de llegada, que se usa para elegir nuevo host. */
   players: Map<string, Player>;
   settings: RoomSettings;
+  /** Uniforme de cada equipo (lo elige el host). */
+  kits: Record<Side, TeamKit>;
   /** Partido en curso (fase playing). */
   match: Match | null;
   /** Se incrementa en cada partido para invalidar bucles y temporizadores viejos. */

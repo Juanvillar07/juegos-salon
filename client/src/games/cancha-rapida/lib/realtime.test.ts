@@ -12,7 +12,7 @@ function frame(tick: number, serverTime: number, x: number): Frame {
     clockMs: tick * TICK_MS,
     kickoff: null,
     ball: disc,
-    players: new Map([[0, { ...disc, kicking: false }]]),
+    players: new Map([[0, { ...disc, kicking: false, charge: 0 }]]),
   };
 }
 

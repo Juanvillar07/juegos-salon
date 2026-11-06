@@ -1,10 +1,10 @@
-import { BALL, FIELD, PLAYER, POSTS, POST_RADIUS, TEAM_COLORS } from '@typeracer/shared/cancha-rapida';
+import { BALL, DEFAULT_KITS, FIELD, PLAYER, POSTS, POST_RADIUS } from '@typeracer/shared/cancha-rapida';
 import { PITCH } from './pitchStyle';
 import styles from './PitchSvg.module.css';
 
 const W = FIELD.outerHalfWidth;
 const H = FIELD.outerHalfHeight;
-const { halfWidth: FW, halfHeight: FH, goalHalfHeight: G, goalDepth: D } = FIELD;
+const { halfWidth: FW, halfHeight: FH, goalHalfHeight: G, goalDepth: D, cornerRadius: C } = FIELD;
 
 /**
  * Cancha en SVG para la portada y la vista previa del portal: dos jugadores por equipo y un
@@ -19,13 +19,18 @@ export default function PitchSvg({ animated = true }: { animated?: boolean }) {
       aria-label="Cancha de fútbol vista desde arriba"
     >
       <rect x={-W} y={-H} width={W * 2} height={H * 2} fill={PITCH.outside} />
-      <rect x={-FW} y={-FH} width={FW * 2} height={FH * 2} fill={PITCH.grass} />
-      {/* Franjas de césped de 60 cada 120, como en el canvas del partido. */}
-      {Array.from({ length: Math.ceil((FW * 2) / 120) }, (_, i) => (
-        <rect key={i} x={-FW + i * 120} y={-FH} width={60} height={FH * 2} fill={PITCH.stripe} />
-      ))}
+      <clipPath id="cancha-campo">
+        <rect x={-FW} y={-FH} width={FW * 2} height={FH * 2} rx={C} />
+      </clipPath>
+      {/* Césped y franjas de 60 cada 120, con las esquinas redondeadas como en el canvas del partido. */}
+      <g clipPath="url(#cancha-campo)">
+        <rect x={-FW} y={-FH} width={FW * 2} height={FH * 2} fill={PITCH.grass} />
+        {Array.from({ length: Math.ceil((FW * 2) / 120) }, (_, i) => (
+          <rect key={i} x={-FW + i * 120} y={-FH} width={60} height={FH * 2} fill={PITCH.stripe} />
+        ))}
+      </g>
       <g fill="none" stroke={PITCH.line} strokeWidth={3}>
-        <rect x={-FW} y={-FH} width={FW * 2} height={FH * 2} />
+        <rect x={-FW} y={-FH} width={FW * 2} height={FH * 2} rx={C} />
         <line x1={0} y1={-FH} x2={0} y2={FH} />
         <circle r={FIELD.centerRadius} />
       </g>
@@ -48,7 +53,7 @@ export default function PitchSvg({ animated = true }: { animated?: boolean }) {
 function Player({ x, y, team, className }: { x: number; y: number; team: 'red' | 'blue'; className?: string }) {
   return (
     <g className={className}>
-      <circle cx={x} cy={y} r={PLAYER.radius} fill={TEAM_COLORS[team]} stroke={PITCH.outline} strokeWidth={2} />
+      <circle cx={x} cy={y} r={PLAYER.radius} fill={DEFAULT_KITS[team].primary} stroke={PITCH.outline} strokeWidth={2} />
     </g>
   );
 }
